@@ -77,6 +77,8 @@ class Tracker
      */
     private $countOfLoggedRequests = 0;
 
+    private $timer;
+
     protected function outputAccessControlHeaders()
     {
         $requestMethod = isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : 'GET';
@@ -90,6 +92,40 @@ class Tracker
     public function clear()
     {
         $this->stateValid = self::STATE_NOTHING_TO_NOTICE;
+    }
+
+    public function isEnabled()
+    {
+        return (!defined('PIWIK_ENABLE_TRACKING') || PIWIK_ENABLE_TRACKING);
+    }
+
+    public function setUp()
+    {
+        \Piwik\FrontController::createConfigObject();
+
+        $GLOBALS['PIWIK_TRACKER_DEBUG'] = (bool) \Piwik\Config::getInstance()->Tracker['debug'];
+        if ($GLOBALS['PIWIK_TRACKER_DEBUG'] === true) {
+            require_once PIWIK_INCLUDE_PATH . '/core/Error.php';
+            \Piwik\Error::setErrorHandler();
+            require_once PIWIK_INCLUDE_PATH . '/core/ExceptionHandler.php';
+            \Piwik\ExceptionHandler::setUp();
+
+            $this->timer = new Timer();
+            Common::printDebug("Debug enabled - Input parameters: ");
+            Common::printDebug(var_export($_GET, true));
+
+            \Piwik\Tracker\Db::enableProfiling();
+        }
+    }
+
+    public function tearDown()
+    {
+        if (array_key_exists('PIWIK_TRACKER_DEBUG', $GLOBALS)
+            && $GLOBALS['PIWIK_TRACKER_DEBUG'] === true) {
+
+            Common::printDebug($_COOKIE);
+            Common::printDebug((string)$this->timer);
+        }
     }
 
     /**

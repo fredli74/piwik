@@ -55,116 +55,53 @@ class TrackerQueue extends ConsoleCommand
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $trackerUrl = $this->getPiwikTrackerUrl($input);
-        $this->checkCompatibility($trackerUrl);
+        $this->checkCompatibility();
+
+        $tracker = new Tracker();
+
+        if (!$tracker->isEnabled()) {
+            throw new \RuntimeException('Tracker is not enabled');
+        }
+
+        $tracker->setUp();
 
         $queue = new Queue();
 
         if ($queue->isLocked()) {
-            // we shouldn't check for $queue->isEnabled() I think! Eg if someone wants to disable queue temporarily but
-            // there are thousands of requests in queue they wouldn't be processed
+            // we shouldn't check for $queue->isEnabled(). Eg if someone wants to disable queue temporarily but
+            // there are thousands of requests in queue they wouldn't be processed. We have to think more about this
+            // scenario as it can result in invalid data anyway (new tracking requests inserted directly) while old
+            // queued ones still being inserted
             return;
         }
 
         $queue->lock($ttlInSeconds = 120);
 
         try {
-            $this->process($trackerUrl, $queue);
+            $this->process($queue);
         } catch (\Exception $e) {
             Log::error($e->getMessage());
         }
 
         $queue->unlock();
+
+        $tracker->tearDown();
     }
 
-    private function process($trackerUrl, Queue $queue)
+    private function process(Queue $queue)
     {
         while ($queue->shouldProcess()) {
             $requests = $queue->shiftRequests();
-            $data     = array('requests' => $requests);
 
-            if(!empty($token_auth)) {
-                $data['token_auth'] = $token_auth;
-            }
-
-            $postData = json_encode($data);
-
-            $this->sendBulkRequest($trackerUrl, $postData);
+            $tracker = new Tracker();
+            $tracker->main($requests);
         }
     }
 
-    private function checkCompatibility($trackerUrl)
+    private function checkCompatibility()
     {
-        if (!function_exists('curl_init') && !function_exists('stream_context_create')) {
-            throw new \Exception('Curl and stream not available');
-        }
-
-        if (empty($trackerUrl)) {
-            throw new \Exception('Cannot find Piwik URL, maybe not installed? Use param --piwikUrl instead');
-        }
+        $queueBackend = new Queue\Backend\Redis();
+        $queueBackend->checkIsInstalled(); // todo command should not know about this backend
     }
 
-    private function getPiwikTrackerUrl(InputInterface $input)
-    {
-        if ($input->hasOption('piwik-domain')) {
-            $piwikUrl = $input->getOption('piwik-domain');
-        }
-
-        if (empty($piwikUrl)) {
-            $piwikUrl = SettingsPiwik::getPiwikUrl();
-        }
-
-        if (!empty($piwikUrl)) {
-            if (!Common::stringEndsWith($piwikUrl, '/')) {
-                $piwikUrl .= '/';
-            }
-
-            $piwikUrl .= 'piwik.php';
-        }
-
-        return $piwikUrl;
-    }
-
-    private function sendBulkRequest($url, $data)
-    {
-        if (function_exists('curl_init')) {
-            $options = array(
-                CURLOPT_URL            => $url,
-                CURLOPT_HEADER         => true,
-                CURLOPT_TIMEOUT        => $this->requestTimeout,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_POST           => true
-            );
-
-            // only supports JSON data
-            if (!empty($data)) {
-                $options[CURLOPT_HTTPHEADER][] = 'Content-Type: application/json';
-                $options[CURLOPT_HTTPHEADER][] = 'Expect:';
-                $options[CURLOPT_POSTFIELDS]   = $data;
-            }
-
-            $ch = curl_init();
-            curl_setopt_array($ch, $options);
-            ob_start();
-            @curl_exec($ch);
-            ob_end_clean();
-
-        } else if (function_exists('stream_context_create')) {
-            $stream_options = array(
-                'http' => array(
-                    'method'  => 'POST',
-                    'timeout' => $this->requestTimeout,
-                )
-            );
-
-            // only supports JSON data
-            if (!empty($data)) {
-                $stream_options['http']['header'] .= "Content-Type: application/json \r\n";
-                $stream_options['http']['content'] = $data;
-            }
-
-            $ctx      = stream_context_create($stream_options);
-            $response = file_get_contents($url, 0, $ctx);
-        }
-    }
 }

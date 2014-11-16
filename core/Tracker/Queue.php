@@ -21,7 +21,7 @@ class Queue
     private $backend;
     private $key = 'trackingQueueV1';
     private $lockKey = 'trackingQueueLock';
-    private $numRequestsToProcessAtSameTime = 50;
+    private $numRequestsToProcessAtSameTime = 3;
 
     public function __construct()
     {
@@ -55,7 +55,7 @@ class Queue
                 $request = $request->getParams();
             }
 
-            $values[] = '?' . http_build_query($request);
+            $values[] = json_encode($request);
         }
 
         $this->backend->popValues($this->key, $values);
@@ -65,14 +65,19 @@ class Queue
     {
         $numRequests = $this->backend->getNumValues($this->key);
 
-        return $numRequests >= 3;
+        return $numRequests >= $this->numRequestsToProcessAtSameTime;
     }
 
     public function shiftRequests()
     {
         $values = $this->backend->shiftValues($this->key, $this->numRequestsToProcessAtSameTime);
 
-        return $values;
+        $requests = array();
+        foreach ($values as $value) {
+            $requests[] = json_decode($value);
+        }
+
+        return $requests;
     }
 
     public function isEnabled()

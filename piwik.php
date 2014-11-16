@@ -88,29 +88,16 @@ require_once PIWIK_INCLUDE_PATH . '/core/Cookie.php';
 session_cache_limiter('nocache');
 @date_default_timezone_set('UTC');
 
-if (!defined('PIWIK_ENABLE_TRACKING') || PIWIK_ENABLE_TRACKING) {
+$process = new Tracker();
+
+if ($process->isEnabled()) {
     ob_start();
 }
 
-\Piwik\FrontController::createConfigObject();
+$process->setUp();
 
-$GLOBALS['PIWIK_TRACKER_DEBUG'] = (bool) \Piwik\Config::getInstance()->Tracker['debug'];
-if ($GLOBALS['PIWIK_TRACKER_DEBUG'] === true) {
-    require_once PIWIK_INCLUDE_PATH . '/core/Error.php';
-    \Piwik\Error::setErrorHandler();
-    require_once PIWIK_INCLUDE_PATH . '/core/ExceptionHandler.php';
-    \Piwik\ExceptionHandler::setUp();
-
-    $timer = new Timer();
-    Common::printDebug("Debug enabled - Input parameters: ");
-    Common::printDebug(var_export($_GET, true));
-
-    \Piwik\Tracker\Db::enableProfiling();
-}
-
-if (!defined('PIWIK_ENABLE_TRACKING') || PIWIK_ENABLE_TRACKING) {
-    $process = new Tracker();
-    $queue   = new Queue();
+if ($process->isEnabled()) {
+    $queue = new Queue();
 
     try {
 
@@ -124,9 +111,8 @@ if (!defined('PIWIK_ENABLE_TRACKING') || PIWIK_ENABLE_TRACKING) {
         echo "Error:" . $e->getMessage();
         exit(1);
     }
+
     ob_end_flush();
-    if ($GLOBALS['PIWIK_TRACKER_DEBUG'] === true) {
-        Common::printDebug($_COOKIE);
-        Common::printDebug((string)$timer);
-    }
+
+    $process->tearDown();
 }
