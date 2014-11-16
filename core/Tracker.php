@@ -201,6 +201,22 @@ class Tracker
         return $tokenAuth;
     }
 
+    public function getRequests()
+    {
+        if (!SettingsPiwik::isPiwikInstalled()) {
+            $this->handleEmptyRequest();
+            return array();
+        }
+
+        try {
+            $this->initRequests(null);
+
+            return $this->requests;
+        } catch (Exception $ex) {
+            $this->exitWithException($ex, true);
+        }
+    }
+
     /**
      * Main - tracks the visit/action
      *

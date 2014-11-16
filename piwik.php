@@ -11,6 +11,7 @@
 use Piwik\Common;
 use Piwik\Timer;
 use Piwik\Tracker;
+use Piwik\Tracker\Queue;
 
 // Note: if you wish to debug the Tracking API please see this documentation:
 // http://developer.piwik.org/api-reference/tracking-api#debugging-the-tracker
@@ -53,6 +54,7 @@ require_once PIWIK_INCLUDE_PATH . '/core/Plugin/ControllerAdmin.php';
 
 require_once PIWIK_INCLUDE_PATH . '/libs/upgradephp/upgrade.php';
 require_once PIWIK_INCLUDE_PATH . '/core/testMinimumPhpVersion.php';
+require_once PIWIK_INCLUDE_PATH . '/core/Tracker/Queue.php';
 require_once PIWIK_INCLUDE_PATH . '/core/Singleton.php';
 require_once PIWIK_INCLUDE_PATH . '/core/Plugin/Manager.php';
 require_once PIWIK_INCLUDE_PATH . '/core/Plugin.php';
@@ -108,9 +110,16 @@ if ($GLOBALS['PIWIK_TRACKER_DEBUG'] === true) {
 
 if (!defined('PIWIK_ENABLE_TRACKING') || PIWIK_ENABLE_TRACKING) {
     $process = new Tracker();
+    $queue   = new Queue();
 
     try {
-        $process->main();
+
+        if ($queue->isEnabled()) {
+            $queue->popRequests($process->getRequests(), $_SERVER);
+        } else {
+            $process->main();
+        }
+
     } catch (Exception $e) {
         echo "Error:" . $e->getMessage();
         exit(1);
