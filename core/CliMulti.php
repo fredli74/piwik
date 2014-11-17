@@ -113,12 +113,17 @@ class CliMulti {
         $this->outputs[] = $output;
     }
 
-    private function buildCommand($hostname, $query, $outputFile)
+    private function buildCommand($hostname, $isTrackerMode, $query, $outputFile)
     {
         $bin = $this->findPhpBinary();
 
-        return sprintf('%s %s/console climulti:request --piwik-domain=%s %s > %s 2>&1 &',
-                       $bin, PIWIK_INCLUDE_PATH, escapeshellarg($hostname), escapeshellarg($query), $outputFile);
+        $trackerMode = '';
+        if ($isTrackerMode) {
+            $trackerMode = '--tracker-mode';
+        }
+
+        return sprintf('%s %s/console climulti:request %s --piwik-domain=%s %s > %s 2>&1 &',
+                       $bin, PIWIK_INCLUDE_PATH, $trackerMode, escapeshellarg($hostname), escapeshellarg($query), $outputFile);
     }
 
     private function getResponse()
@@ -239,7 +244,15 @@ class CliMulti {
         $url      = $this->appendTestmodeParamToUrlIfNeeded($url);
         $query    = UrlHelper::getQueryFromUrl($url, array('pid' => $cmdId));
         $hostname = UrlHelper::getHostFromUrl($url);
-        $command  = $this->buildCommand($hostname, $query, $output->getPathToFile());
+
+        $parsedUrl = parse_url($url);
+
+        $isTrackerMode = false;
+        if (Common::stringEndsWith($parsedUrl['path'], '/piwik.php')) {
+            $isTrackerMode = true;
+        }
+
+        $command  = $this->buildCommand($hostname, $isTrackerMode, $query, $output->getPathToFile());
 
         Log::debug($command);
         shell_exec($command);

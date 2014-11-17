@@ -9,6 +9,7 @@
 
 namespace Piwik\Plugins\CoreConsole\Commands;
 
+use Piwik\CliMulti;
 use Piwik\Common;
 use Piwik\Http;
 use Piwik\Log;
@@ -55,6 +56,8 @@ class TrackerQueue extends ConsoleCommand
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        $trackrUrl = $this->getPiwikTrackerUrl($input);
+
         $this->checkCompatibility();
 
         $tracker = new Tracker();
@@ -78,7 +81,7 @@ class TrackerQueue extends ConsoleCommand
         $queue->lock($ttlInSeconds = 120);
 
         try {
-            $this->process($queue);
+            $this->process($trackrUrl, $queue);
         } catch (\Exception $e) {
             Log::error($e->getMessage());
         }
@@ -88,14 +91,33 @@ class TrackerQueue extends ConsoleCommand
         $tracker->tearDown();
     }
 
-    private function process(Queue $queue)
+    private function process($trackerUrl, Queue $queue)
     {
         while ($queue->shouldProcess()) {
             $requests = $queue->shiftRequests();
 
-            $tracker = new Tracker();
-            $tracker->main($requests);
+            $data     = array('requests' => $requests);
+
+            $cliMulti = new CliMulti();
+            $cliMulti->request(array($trackerUrl . '?' . http_build_query($data)));
         }
+    }
+
+    private function getPiwikTrackerUrl(InputInterface $input)
+    {
+        if ($input->hasOption('piwik-domain')) {
+            $piwikUrl = $input->getOption('piwik-domain');
+        }
+        if (empty($piwikUrl)) {
+            $piwikUrl = SettingsPiwik::getPiwikUrl();
+        }
+        if (!empty($piwikUrl)) {
+            if (!Common::stringEndsWith($piwikUrl, '/')) {
+                $piwikUrl .= '/';
+            }
+            $piwikUrl .= 'piwik.php';
+        }
+        return $piwikUrl;
     }
 
     private function checkCompatibility()

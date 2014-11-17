@@ -9,7 +9,6 @@
  */
 
 use Piwik\Common;
-use Piwik\Timer;
 use Piwik\Tracker;
 use Piwik\Tracker\Queue;
 
@@ -95,6 +94,9 @@ if ($process->isEnabled()) {
 }
 
 $process->setUp();
+
+\Piwik\Log::warning('called');
+\Piwik\Log::warning((int)Common::isPhpCliMode());
 
 if ($process->isEnabled()) {
     $queue = new Queue();

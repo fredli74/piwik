@@ -27,6 +27,7 @@ class RequestCommand extends ConsoleCommand
         $this->setName('climulti:request');
         $this->setDescription('Parses and executes the given query. See Piwik\CliMulti. Intended only for system usage.');
         $this->addArgument('url-query', null, InputOption::VALUE_REQUIRED, 'Piwik URL query string, for instance: "module=API&method=API.getPiwikVersion&token_auth=123456789"');
+        $this->addOption('tracker-mode', null, InputOption::VALUE_NONE, 'If set, it will request the Tracker (piwik.php) instead of index.php');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
@@ -35,9 +36,15 @@ class RequestCommand extends ConsoleCommand
 
         if ($this->isTestModeEnabled()) {
             Config::getInstance()->setTestEnvironment();
-            $indexFile = '/tests/PHPUnit/proxy/index.php';
+            $indexFile = '/tests/PHPUnit/proxy/';
         } else {
-            $indexFile = '/index.php';
+            $indexFile = '/';
+        }
+
+        if ($input->getOption('tracker-mode')) {
+            $indexFile .= 'piwik.php';
+        } else {
+            $indexFile .= 'index.php';
         }
 
         if (!empty($_GET['pid'])) {
