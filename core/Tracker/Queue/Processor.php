@@ -44,16 +44,23 @@ class Processor
 
     public function process(Tracker $tracker)
     {
+        $response = new Response();
+        $response->init();
+
         do {
             $this->expireLock($ttlInSeconds = 120);
 
-            $requests = $this->queue->getRequestsToProcess();
+            $queuedRequests = $this->queue->getRequestsToProcess();
 
-            $tracker->main($requests);
+            $requests = new Tracker\Requests();
+            $requests->setRequests($queuedRequests);
+            $tracker->main($requests, $response);
 
             $this->queue->markRequestsAsProcessed();
 
         } while ($this->queue->shouldProcess());
+
+        $response->send();
     }
 
     public function finishProcess()

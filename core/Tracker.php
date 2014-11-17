@@ -13,11 +13,12 @@ use Piwik\Exception\InvalidRequestParameterException;
 use Piwik\Exception\UnexpectedWebsiteFoundException;
 use Piwik\Plugins\PrivacyManager\Config as PrivacyManagerConfig;
 use Piwik\Plugins\SitesManager\SiteUrls;
-use Piwik\Tracker\Cache;
+use Piwik\Tracker\Db as TrackerDb;
 use Piwik\Tracker\Db\DbException;
-use Piwik\Tracker\Db\Mysqli;
-use Piwik\Tracker\Db\Pdo\Mysql;
 use Piwik\Tracker\Request;
+use Piwik\Tracker\Requests;
+use Piwik\Tracker\Response;
+use Piwik\Tracker\ScheduledTasksRunner;
 use Piwik\Tracker\Visit;
 use Piwik\Tracker\VisitInterface;
 
@@ -49,26 +50,8 @@ class Tracker
     protected static $pluginsNotToLoad = array();
     protected static $pluginsToLoad = array();
 
-    /**
-     * The set of visits to track.
-     *
-     * @var array
-     */
-    private $requests = array();
-
-    /**
-     * The token auth supplied with a bulk visits POST.
-     *
-     * @var string
-     */
-    private $tokenAuth = null;
-
-    /**
-     * Whether we're currently using bulk tracking or not.
-     *
-     * @var bool
-     */
-    private $usingBulkTracking = false;
+    public static $initTrackerMode = false;
+    private $transactionId;
 
     /**
      * The number of requests that have been successfully logged.
@@ -78,16 +61,6 @@ class Tracker
     private $countOfLoggedRequests = 0;
 
     private $timer;
-
-    protected function outputAccessControlHeaders()
-    {
-        $requestMethod = isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : 'GET';
-        if ($requestMethod !== 'GET') {
-            $origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '*';
-            Common::sendHeader('Access-Control-Allow-Origin: ' . $origin);
-            Common::sendHeader('Access-Control-Allow-Credentials: true');
-        }
-    }
 
     public function clear()
     {
@@ -114,15 +87,13 @@ class Tracker
             Common::printDebug("Debug enabled - Input parameters: ");
             Common::printDebug(var_export($_GET, true));
 
-            \Piwik\Tracker\Db::enableProfiling();
+            TrackerDb::enableProfiling();
         }
     }
 
     public function tearDown()
     {
-        if (array_key_exists('PIWIK_TRACKER_DEBUG', $GLOBALS)
-            && $GLOBALS['PIWIK_TRACKER_DEBUG'] === true) {
-
+        if ($this->isDebugModeEnabled()) {
             Common::printDebug($_COOKIE);
             Common::printDebug((string)$this->timer);
         }
@@ -160,129 +131,43 @@ class Tracker
         Config::getInstance()->Tracker = $section;
     }
 
-    protected function initRequests($args)
-    {
-        $rawData = self::getRawBulkRequest();
-        if (!empty($rawData)) {
-            $this->usingBulkTracking = strpos($rawData, '"requests"') || strpos($rawData, "'requests'");
-            if ($this->usingBulkTracking) {
-                return $this->authenticateBulkTrackingRequests($rawData);
-            }
-        }
-
-        // Not using bulk tracking
-        $this->requests = $args ? $args : (!empty($_GET) || !empty($_POST) ? array($_GET + $_POST) : array());
-    }
-
-    private static function getRequestsArrayFromBulkRequest($rawData)
-    {
-        $rawData = trim($rawData);
-        $rawData = Common::sanitizeLineBreaks($rawData);
-
-        // POST data can be array of string URLs or array of arrays w/ visit info
-        $jsonData = json_decode($rawData, $assoc = true);
-
-        $tokenAuth = Common::getRequestVar('token_auth', false, 'string', $jsonData);
-
-        $requests = array();
-        if (isset($jsonData['requests'])) {
-            $requests = $jsonData['requests'];
-        }
-
-        return array($requests, $tokenAuth);
-    }
-
-    private function isBulkTrackingRequireTokenAuth()
-    {
-        return !empty(Config::getInstance()->Tracker['bulk_requests_require_authentication']);
-    }
-
-    private function authenticateBulkTrackingRequests($rawData)
-    {
-        list($this->requests, $tokenAuth) = $this->getRequestsArrayFromBulkRequest($rawData);
-
-        $bulkTrackingRequireTokenAuth = $this->isBulkTrackingRequireTokenAuth();
-        if ($bulkTrackingRequireTokenAuth) {
-            if (empty($tokenAuth)) {
-                throw new Exception("token_auth must be specified when using Bulk Tracking Import. "
-                    . " See <a href='http://developer.piwik.org/api-reference/tracking-api'>Tracking Doc</a>");
-            }
-        }
-
-        if (!empty($this->requests)) {
-            foreach ($this->requests as &$request) {
-                // if a string is sent, we assume its a URL and try to parse it
-                if (is_string($request)) {
-                    $params = array();
-
-                    $url = @parse_url($request);
-                    if (!empty($url)) {
-                        @parse_str($url['query'], $params);
-                        $request = $params;
-                    }
-                }
-
-                $requestObj = new Request($request, $tokenAuth);
-                $this->loadTrackerPlugins($requestObj);
-
-                if ($bulkTrackingRequireTokenAuth
-                    && !$requestObj->isAuthenticated()
-                ) {
-                    throw new Exception(sprintf("token_auth specified does not have Admin permission for idsite=%s", $requestObj->getIdSite()));
-                }
-                $request = $requestObj;
-            }
-        }
-
-        return $tokenAuth;
-    }
-
-    public function getRequests()
-    {
-        if (!SettingsPiwik::isPiwikInstalled()) {
-            $this->handleEmptyRequest();
-            return array();
-        }
-
-        try {
-            $this->initRequests(null);
-
-            return $this->requests;
-        } catch (Exception $ex) {
-            $this->exitWithException($ex, true);
-        }
-    }
-
     /**
      * Main - tracks the visit/action
      *
-     * @param array $args Optional Request Array
+     * @param Tracker\Requests $requests
+     * @param Tracker\Response $response
      */
-    public function main($args = null)
+    public function main($requests, $response)
     {
         if (!SettingsPiwik::isPiwikInstalled()) {
-            return $this->handleEmptyRequest();
-        }
-        try {
-            $tokenAuth = $this->initRequests($args);
-        } catch (Exception $ex) {
-            $this->exitWithException($ex, true);
+            $this->handleEmptyRequest();
+            return;
         }
 
-        $this->initOutputBuffer();
+        if (!empty($requests)) {
+            if ($requests->isUsingBulkRequest() && $this->isTransactionSupported()) {
+                $this->beginTransaction();
+            }
 
-        if (!empty($this->requests)) {
-            $this->beginTransaction();
+            $isAuthenticated = false;
 
             try {
-                foreach ($this->requests as $params) {
-                    $isAuthenticated = $this->trackRequest($params, $tokenAuth);
+                foreach ($requests->getRequests() as $request) {
+                    $isAuthenticated = $this->trackRequest($request, $requests->getTokenAuth());
                 }
-                $this->runScheduledTasksIfAllowed($isAuthenticated);
+
                 $this->commitTransaction();
+
+                $this->runScheduledTasksIfAllowed($isAuthenticated);
+
             } catch (DbException $e) {
-                Common::printDebug($e->getMessage());
-                $this->rollbackTransaction();
+                $this->handleException($e, $response, 500);
+            } catch (UnexpectedWebsiteFoundException $e) {
+                $this->handleException($e, $response, 400);
+            } catch (InvalidRequestParameterException $e) {
+                $this->handleException($e, $response, 400);
+            } catch (Exception $e) {
+                $this->handleException($e, $response, 500);
             }
 
         } else {
@@ -291,32 +176,24 @@ class Tracker
 
         Piwik::postEvent('Tracker.end');
 
-        $this->end();
+        $response->outputResponse($this);
 
-        $this->flushOutputBuffer();
+        self::disconnectDatabase();
     }
 
-    protected function initOutputBuffer()
+    private function handleException(Exception $e, Response $response, $responseCode)
     {
-        ob_start();
-    }
-
-    protected function flushOutputBuffer()
-    {
-        ob_end_flush();
-    }
-
-    protected function getOutputBuffer()
-    {
-        return ob_get_contents();
+        $this->rollbackTransaction();
+        Common::printDebug("Exception: " . $e->getMessage());
+        $response->outputException($this, $e, $responseCode);
     }
 
     protected function beginTransaction()
     {
-        $this->transactionId = null;
-        if (!$this->shouldUseTransactions()) {
+        if (!empty($this->transactionId)) {
             return;
         }
+
         $this->transactionId = self::getDatabase()->beginTransaction();
     }
 
@@ -326,6 +203,7 @@ class Tracker
             return;
         }
         self::getDatabase()->commit($this->transactionId);
+        $this->transactionId = null;
     }
 
     protected function rollbackTransaction()
@@ -339,100 +217,10 @@ class Tracker
     /**
      * @return bool
      */
-    protected function shouldUseTransactions()
-    {
-        $isBulkRequest = count($this->requests) > 1;
-        return $isBulkRequest && $this->isTransactionSupported();
-    }
-
-    /**
-     * @return bool
-     */
     protected function isTransactionSupported()
     {
         return (bool)Config::getInstance()->Tracker['bulk_requests_use_transaction'];
     }
-
-    protected function shouldRunScheduledTasks()
-    {
-        // don't run scheduled tasks in CLI mode from Tracker, this is the case
-        // where we bulk load logs & don't want to lose time with tasks
-        return !Common::isPhpCliMode()
-        && $this->getState() != self::STATE_LOGGING_DISABLE;
-    }
-
-    /**
-     * Tracker requests will automatically trigger the Scheduled tasks.
-     * This is useful for users who don't setup the cron,
-     * but still want daily/weekly/monthly PDF reports emailed automatically.
-     *
-     * This is similar to calling the API CoreAdminHome.runScheduledTasks
-     */
-    protected static function runScheduledTasks()
-    {
-        $now = time();
-
-        // Currently, there are no hourly tasks. When there are some,
-        // this could be too aggressive minimum interval (some hours would be skipped in case of low traffic)
-        $minimumInterval = Config::getInstance()->Tracker['scheduled_tasks_min_interval'];
-
-        // If the user disabled browser archiving, he has already setup a cron
-        // To avoid parallel requests triggering the Scheduled Tasks,
-        // Get last time tasks started executing
-        $cache = Cache::getCacheGeneral();
-
-        if ($minimumInterval <= 0
-            || empty($cache['isBrowserTriggerEnabled'])
-        ) {
-            Common::printDebug("-> Scheduled tasks not running in Tracker: Browser archiving is disabled.");
-            return;
-        }
-
-        $nextRunTime = $cache['lastTrackerCronRun'] + $minimumInterval;
-
-        if ((defined('DEBUG_FORCE_SCHEDULED_TASKS') && DEBUG_FORCE_SCHEDULED_TASKS)
-            || $cache['lastTrackerCronRun'] === false
-            || $nextRunTime < $now
-        ) {
-            $cache['lastTrackerCronRun'] = $now;
-            Cache::setCacheGeneral($cache);
-            self::initCorePiwikInTrackerMode();
-            Option::set('lastTrackerCronRun', $cache['lastTrackerCronRun']);
-            Common::printDebug('-> Scheduled Tasks: Starting...');
-
-            // save current user privilege and temporarily assume Super User privilege
-            $isSuperUser = Piwik::hasUserSuperUserAccess();
-
-            // Scheduled tasks assume Super User is running
-            Piwik::setUserHasSuperUserAccess();
-
-            // While each plugins should ensure that necessary languages are loaded,
-            // we ensure English translations at least are loaded
-            Translate::loadEnglishTranslation();
-
-            ob_start();
-            CronArchive::$url = SettingsPiwik::getPiwikUrl();
-            $cronArchive = new CronArchive();
-            $cronArchive->runScheduledTasksInTrackerMode();
-
-            $resultTasks = ob_get_contents();
-            ob_clean();
-
-            // restore original user privilege
-            Piwik::setUserHasSuperUserAccess($isSuperUser);
-
-            foreach (explode('</pre>', $resultTasks) as $resultTask) {
-                Common::printDebug(str_replace('<pre>', '', $resultTask));
-            }
-
-            Common::printDebug('Finished Scheduled Tasks.');
-        } else {
-            Common::printDebug("-> Scheduled tasks not triggered.");
-        }
-        Common::printDebug("Next run will be from: " . date('Y-m-d H:i:s', $nextRunTime) . ' UTC');
-    }
-
-    public static $initTrackerMode = false;
 
     /**
      * Used to initialize core Piwik components on a piwik.php request
@@ -459,56 +247,9 @@ class Tracker
         }
     }
 
-    /**
-     * Echos an error message & other information, then exits.
-     *
-     * @param Exception $e
-     * @param bool $authenticated
-     * @param int  $statusCode eg 500
-     */
-    protected function exitWithException($e, $authenticated = false, $statusCode = 500)
+    public function getCountOfLoggedRequests()
     {
-        $this->performRedirectToUrlIfSet();
-
-        Common::sendResponseCode($statusCode);
-        error_log(sprintf("Error in Piwik (tracker): %s", str_replace("\n", " ", $this->getMessageFromException($e))));
-
-        if ($this->usingBulkTracking) {
-            // when doing bulk tracking we return JSON so the caller will know how many succeeded
-            $result = array(
-                'status' => 'error',
-                'tracked' => $this->countOfLoggedRequests
-            );
-            // send error when in debug mode or when authenticated (which happens when doing log importing,
-            if ((isset($GLOBALS['PIWIK_TRACKER_DEBUG']) && $GLOBALS['PIWIK_TRACKER_DEBUG'])
-                || $authenticated
-            ) {
-                $result['message'] = $this->getMessageFromException($e);
-            }
-            Common::sendHeader('Content-Type: application/json');
-            echo json_encode($result);
-            die(1);
-            exit;
-        }
-
-        if (isset($GLOBALS['PIWIK_TRACKER_DEBUG']) && $GLOBALS['PIWIK_TRACKER_DEBUG']) {
-            Common::sendHeader('Content-Type: text/html; charset=utf-8');
-            $trailer = '<span style="color: #888888">Backtrace:<br /><pre>' . $e->getTraceAsString() . '</pre></span>';
-            $headerPage = file_get_contents(PIWIK_INCLUDE_PATH . '/plugins/Morpheus/templates/simpleLayoutHeader.tpl');
-            $footerPage = file_get_contents(PIWIK_INCLUDE_PATH . '/plugins/Morpheus/templates/simpleLayoutFooter.tpl');
-            $headerPage = str_replace('{$HTML_TITLE}', 'Piwik &rsaquo; Error', $headerPage);
-
-            echo $headerPage . '<p>' . $this->getMessageFromException($e) . '</p>' . $trailer . $footerPage;
-        } // If not debug, but running authenticated (eg. during log import) then we display raw errors
-        elseif ($authenticated) {
-            Common::sendHeader('Content-Type: text/html; charset=utf-8');
-            echo $this->getMessageFromException($e);
-        } else {
-            $this->sendResponse();
-        }
-
-        die(1);
-        exit;
+        return $this->countOfLoggedRequests;
     }
 
     /**
@@ -533,137 +274,27 @@ class Tracker
         $this->handleEmptyRequest($request);
     }
 
-    /**
-     * Cleanup
-     */
-    protected function end()
+    public function isDatabaseConnected()
     {
-        if ($this->usingBulkTracking) {
-            $result = array(
-                'status' => 'success',
-                'tracked' => $this->countOfLoggedRequests
-            );
+        return !is_null(self::$db);
+    }
 
-            $this->outputAccessControlHeaders();
-
-            Common::sendHeader('Content-Type: application/json');
-            echo json_encode($result);
-            exit;
-        }
-        switch ($this->getState()) {
-            case self::STATE_LOGGING_DISABLE:
-                $this->sendResponse();
-                Common::printDebug("Logging disabled, display transparent logo");
-                break;
-
-            case self::STATE_EMPTY_REQUEST:
-                Common::printDebug("Empty request => Piwik page");
-                echo "<a href='/'>Piwik</a> is a free/libre web <a href='http://piwik.org'>analytics</a> that lets you keep control of your data.";
-                break;
-
-            case self::STATE_NOSCRIPT_REQUEST:
-            case self::STATE_NOTHING_TO_NOTICE:
-            default:
-                $this->sendResponse();
-                Common::printDebug("Nothing to notice => default behaviour");
-                break;
-        }
-        Common::printDebug("End of the page.");
-
-        if ($GLOBALS['PIWIK_TRACKER_DEBUG'] === true) {
-            if (isset(self::$db)) {
-                self::$db->recordProfiling();
-                Profiler::displayDbTrackerProfile(self::$db);
+    public static function getDatabase()
+    {
+        if (is_null(self::$db)) {
+            try {
+                self::$db = TrackerDb::connectPiwikTrackerDb();
+            } catch (Exception $e) {
+                throw new DbException($e->getMessage(), $e->getCode());
             }
         }
 
-        self::disconnectDatabase();
-    }
-
-    /**
-     * Factory to create database objects
-     *
-     * @param array $configDb Database configuration
-     * @throws Exception
-     * @return \Piwik\Tracker\Db\Mysqli|\Piwik\Tracker\Db\Pdo\Mysql
-     */
-    public static function factory($configDb)
-    {
-        /**
-         * Triggered before a connection to the database is established by the Tracker.
-         *
-         * This event can be used to change the database connection settings used by the Tracker.
-         *
-         * @param array $dbInfos Reference to an array containing database connection info,
-         *                       including:
-         *
-         *                       - **host**: The host name or IP address to the MySQL database.
-         *                       - **username**: The username to use when connecting to the
-         *                                       database.
-         *                       - **password**: The password to use when connecting to the
-         *                                       database.
-         *                       - **dbname**: The name of the Piwik MySQL database.
-         *                       - **port**: The MySQL database port to use.
-         *                       - **adapter**: either `'PDO\MYSQL'` or `'MYSQLI'`
-         *                       - **type**: The MySQL engine to use, for instance 'InnoDB'
-         */
-        Piwik::postEvent('Tracker.getDatabaseConfig', array(&$configDb));
-
-        switch ($configDb['adapter']) {
-            case 'PDO\MYSQL':
-            case 'PDO_MYSQL': // old format pre Piwik 2
-                require_once PIWIK_INCLUDE_PATH . '/core/Tracker/Db/Pdo/Mysql.php';
-                return new Mysql($configDb);
-
-            case 'MYSQLI':
-                require_once PIWIK_INCLUDE_PATH . '/core/Tracker/Db/Mysqli.php';
-                return new Mysqli($configDb);
-        }
-
-        throw new Exception('Unsupported database adapter ' . $configDb['adapter']);
-    }
-
-    public static function connectPiwikTrackerDb()
-    {
-        $db = null;
-        $configDb = Config::getInstance()->database;
-
-        if (!isset($configDb['port'])) {
-            // before 0.2.4 there is no port specified in config file
-            $configDb['port'] = '3306';
-        }
-
-        $db = Tracker::factory($configDb);
-        $db->connect();
-
-        return $db;
-    }
-
-    protected static function connectDatabaseIfNotConnected()
-    {
-        if (!is_null(self::$db)) {
-            return;
-        }
-
-        try {
-            self::$db = self::connectPiwikTrackerDb();
-        } catch (Exception $e) {
-            throw new DbException($e->getMessage(), $e->getCode());
-        }
-    }
-
-    /**
-     * @return Db
-     */
-    public static function getDatabase()
-    {
-        self::connectDatabaseIfNotConnected();
         return self::$db;
     }
 
     public static function disconnectDatabase()
     {
-        if (isset(self::$db)) {
+        if (!is_null(self::$db)) {
             self::$db->disconnect();
             self::$db = null;
         }
@@ -699,30 +330,38 @@ class Tracker
         return $visit;
     }
 
-    private function sendResponse()
+    public function shouldPerformRedirectToUrl(Requests $requests)
     {
-        if (isset($GLOBALS['PIWIK_TRACKER_DEBUG'])
-            && $GLOBALS['PIWIK_TRACKER_DEBUG']
-        ) {
-            return;
+        if (!$requests->hasRedirectUrl()) {
+            return false;
         }
 
-        if (strlen($this->getOutputBuffer()) > 0) {
-            // If there was an error during tracker, return so errors can be flushed
-            return;
+        if ($requests->hasRequests()) {
+            return false;
         }
 
-        $this->outputAccessControlHeaders();
+        $redirectUrl = $requests->getRedirectUrl();
+        $host        = Url::getHostFromUrl($redirectUrl);
 
-        $request = $_GET + $_POST;
-
-        if (array_key_exists('send_image', $request) && $request['send_image'] === '0') {
-            Common::sendResponseCode(204);
-
-            return;
+        if (empty($host)) {
+            return false;
         }
 
-        $this->outputTransparentGif();
+        $urls     = new SiteUrls();
+        $siteUrls = $urls->getAllCachedSiteUrls();
+        $siteIds  = $requests->getAllSiteIdsWithinRequest();
+
+        foreach ($siteIds as $siteId) {
+            if (empty($siteUrls[$siteId])) {
+                continue;
+            }
+
+            if (Url::isHostInUrls($host, $siteUrls[$siteId])) {
+                return $redirectUrl;
+            }
+        }
+
+        return false;
     }
 
     protected function outputTransparentGif ()
@@ -739,9 +378,19 @@ class Tracker
         && $this->stateValid !== self::STATE_EMPTY_REQUEST;
     }
 
-    protected function getState()
+    public function getState()
     {
         return $this->stateValid;
+    }
+
+    public function isLoggingDisabled()
+    {
+        return $this->getState() === self::STATE_LOGGING_DISABLE;
+    }
+
+    public function isDebugModeEnabled()
+    {
+        return array_key_exists('PIWIK_TRACKER_DEBUG', $GLOBALS) && $GLOBALS['PIWIK_TRACKER_DEBUG'] === true;
     }
 
     protected function setState($value)
@@ -787,20 +436,12 @@ class Tracker
         }
     }
 
-    protected function getTokenAuth()
-    {
-        if (!is_null($this->tokenAuth)) {
-            return $this->tokenAuth;
-        }
-
-        return Common::getRequestVar('token_auth', false);
-    }
-
     public static function setTestEnvironment($args = null, $requestMethod = null)
     {
         if (is_null($args)) {
-            $postData = self::getRequestsArrayFromBulkRequest(self::getRawBulkRequest());
-            $args = $_GET + $postData;
+            $requests = new Requests();
+            $postData = $requests->getRequestsArrayFromBulkRequest($requests->getRawBulkRequest());
+            $args     = $_GET + $postData;
         }
         if (is_null($requestMethod) && array_key_exists('REQUEST_METHOD', $_SERVER)) {
             $requestMethod = $_SERVER['REQUEST_METHOD'];
@@ -833,7 +474,7 @@ class Tracker
         // Tests can force the enabling of IP anonymization
         if (Common::getRequestVar('forceIpAnonymization', false, null, $args) == 1) {
 
-            self::connectDatabaseIfNotConnected();
+            self::getDatabase(); // make sure db is initialized
 
             $privacyConfig = new PrivacyManagerConfig();
             $privacyConfig->ipAddressMaskLength = 2;
@@ -845,25 +486,6 @@ class Tracker
 
         // Disable provider plugin, because it is so slow to do many reverse ip lookups
         self::setPluginsNotToLoad($pluginsDisabled);
-    }
-
-    /**
-     * Gets the error message to output when a tracking request fails.
-     *
-     * @param Exception $e
-     * @return string
-     */
-    private function getMessageFromException($e)
-    {
-        // Note: duplicated from FormDatabaseSetup.isAccessDenied
-        // Avoid leaking the username/db name when access denied
-        if ($e->getCode() == 1044 || $e->getCode() == 42000) {
-            return "Error while connecting to the Piwik database - please check your credentials in config/config.ini.php file";
-        }
-        if(Common::isPhpCliMode()) {
-            return $e->getMessage() . "\n" . $e->getTraceAsString();
-        }
-        return $e->getMessage();
     }
 
     /**
@@ -883,28 +505,16 @@ class Tracker
 
         $isAuthenticated = $request->isAuthenticated();
 
-        try {
-            if ($this->isVisitValid()) {
-                Common::printDebug("Current datetime: " . date("Y-m-d H:i:s", $request->getCurrentTimestamp()));
+        if ($this->isVisitValid()) {
+            Common::printDebug("Current datetime: " . date("Y-m-d H:i:s", $request->getCurrentTimestamp()));
 
-                $visit = $this->getNewVisitObject();
-                $visit->setRequest($request);
-                $visit->handle();
-            } else {
-                Common::printDebug("The request is invalid: empty request, or maybe tracking is disabled in the config.ini.php via record_statistics=0");
-            }
-        } catch (UnexpectedWebsiteFoundException $e) {
-            Common::printDebug("Exception: " . $e->getMessage());
-            $this->exitWithException($e, $isAuthenticated, 400);
-        } catch (InvalidRequestParameterException $e) {
-            Common::printDebug("Exception: " . $e->getMessage());
-            $this->exitWithException($e, $isAuthenticated, 400);
-        } catch (DbException $e) {
-            Common::printDebug("Exception: " . $e->getMessage());
-            $this->exitWithException($e, $isAuthenticated);
-        } catch (Exception $e) {
-            $this->exitWithException($e, $isAuthenticated);
+            $visit = $this->getNewVisitObject();
+            $visit->setRequest($request);
+            $visit->handle();
+        } else {
+            Common::printDebug("The request is invalid: empty request, or maybe tracking is disabled in the config.ini.php via record_statistics=0");
         }
+
         $this->clear();
 
         // increment successfully logged request count. make sure to do this after try-catch,
@@ -917,93 +527,13 @@ class Tracker
     {
         // Do not run schedule task if we are importing logs
         // or doing custom tracking (as it could slow down)
-        try {
-            if (!$isAuthenticated
-                && $this->shouldRunScheduledTasks()
-            ) {
-                self::runScheduledTasks();
-            }
-        } catch (Exception $e) {
-            $this->exitWithException($e);
-        }
-    }
+        if (!$isAuthenticated) {
 
-    /**
-     * @return string
-     */
-    protected static function getRawBulkRequest()
-    {
-        return file_get_contents("php://input");
-    }
-
-    private function getRedirectUrl()
-    {
-        return Common::getRequestVar('redirecturl', false, 'string');
-    }
-
-    private function hasRedirectUrl()
-    {
-        $redirectUrl = $this->getRedirectUrl();
-
-        return !empty($redirectUrl);
-    }
-
-    public function shouldPerformRedirectToUrl()
-    {
-        if (!$this->hasRedirectUrl()) {
-            return false;
-        }
-
-        if (empty($this->requests)) {
-            return false;
-        }
-
-        $redirectUrl = $this->getRedirectUrl();
-        $host        = Url::getHostFromUrl($redirectUrl);
-
-        if (empty($host)) {
-            return false;
-        }
-
-        $urls     = new SiteUrls();
-        $siteUrls = $urls->getAllCachedSiteUrls();
-        $siteIds  = $this->getAllSiteIdsWithinRequest();
-
-        foreach ($siteIds as $siteId) {
-            if (empty($siteUrls[$siteId])) {
-                continue;
-            }
-
-            if (Url::isHostInUrls($host, $siteUrls[$siteId])) {
-                return $redirectUrl;
+            $tasks = new ScheduledTasksRunner();
+            if ($tasks->shouldRun($this)) {
+                $tasks->runScheduledTasks();
             }
         }
-
-        return false;
-    }
-
-    private function performRedirectToUrlIfSet()
-    {
-        $redirectUrl = $this->shouldPerformRedirectToUrl();
-
-        if (!empty($redirectUrl)) {
-            Url::redirectToUrl($redirectUrl);
-        }
-    }
-
-    private function getAllSiteIdsWithinRequest()
-    {
-        if (empty($this->requests)) {
-            return array();
-        }
-
-        $siteIds = array();
-
-        foreach ($this->requests as $request) {
-            $siteIds[] = (int) $request['idsite'];
-        }
-
-        return array_unique($siteIds);
     }
 
 }

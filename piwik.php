@@ -9,6 +9,7 @@
  */
 
 use Piwik\Url;
+use Piwik\Tracker\Requests;
 use Piwik\Tracker;
 use Piwik\Tracker\Queue;
 use Piwik\Tracker\Queue\Processor as QueueProcessor;
@@ -91,14 +92,13 @@ session_cache_limiter('nocache');
 $tracker = new Tracker();
 
 if ($tracker->isEnabled()) {
+
     ob_start();
-}
 
-$tracker->setUp();
+    $tracker->setUp();
 
-if ($tracker->isEnabled()) {
-
-    $redirectUrl = $tracker->shouldPerformRedirectToUrl();
+    $requests    = new Requests();
+    $redirectUrl = $tracker->shouldPerformRedirectToUrl($requests);
 
     if (!empty($redirectUrl)) {
         Url::redirectToUrlNoExit($redirectUrl);
@@ -109,25 +109,27 @@ if ($tracker->isEnabled()) {
     try {
 
         if ($queue->isEnabled()) {
-            $queue->popRequests($tracker->getRequests(), $_SERVER);
+            $queue->popRequests($requests->getRequests(), $_SERVER);
 
             $processor = new QueueProcessor($queue);
             if ($processor->shouldProcess()) {
 
                 set_time_limit(0);
-                header("Connection: close\r\n", true);
-                header("Content-Encoding: none\r\n", true);
-                header('Content-Length: ' . ob_get_length(), true);
-                ob_end_flush();
-                ob_flush();
-                flush();
-
                 $processor->process($tracker);
                 $processor->finishProcess();
             }
 
         } else {
-            $tracker->main();
+
+            if ($requests->isUsingBulkRequest()) {
+                $response = new Tracker\BulkTracking\Response();
+            } else {
+                $response = new Tracker\Response();
+            }
+
+            $response->init();
+            $tracker->main($requests, $response);
+            $response->send();
         }
 
     } catch (Exception $e) {
@@ -135,7 +137,7 @@ if ($tracker->isEnabled()) {
         exit(1);
     }
 
-    ob_end_flush();
-
     $tracker->tearDown();
+
+    ob_end_flush();
 }
