@@ -294,8 +294,6 @@ class Tracker
         $this->end();
 
         $this->flushOutputBuffer();
-
-        $this->performRedirectToUrlIfSet();
     }
 
     protected function initOutputBuffer()
@@ -470,10 +468,7 @@ class Tracker
      */
     protected function exitWithException($e, $authenticated = false, $statusCode = 500)
     {
-        if ($this->hasRedirectUrl()) {
-            $this->performRedirectToUrlIfSet();
-            exit;
-        }
+        $this->performRedirectToUrlIfSet();
 
         Common::sendResponseCode($statusCode);
         error_log(sprintf("Error in Piwik (tracker): %s", str_replace("\n", " ", $this->getMessageFromException($e))));
@@ -953,21 +948,21 @@ class Tracker
         return !empty($redirectUrl);
     }
 
-    private function performRedirectToUrlIfSet()
+    public function shouldPerformRedirectToUrl()
     {
         if (!$this->hasRedirectUrl()) {
-            return;
+            return false;
         }
 
         if (empty($this->requests)) {
-            return;
+            return false;
         }
 
         $redirectUrl = $this->getRedirectUrl();
         $host        = Url::getHostFromUrl($redirectUrl);
 
         if (empty($host)) {
-            return;
+            return false;
         }
 
         $urls     = new SiteUrls();
@@ -980,8 +975,19 @@ class Tracker
             }
 
             if (Url::isHostInUrls($host, $siteUrls[$siteId])) {
-                Url::redirectToUrl($redirectUrl);
+                return $redirectUrl;
             }
+        }
+
+        return false;
+    }
+
+    private function performRedirectToUrlIfSet()
+    {
+        $redirectUrl = $this->shouldPerformRedirectToUrl();
+
+        if (!empty($redirectUrl)) {
+            Url::redirectToUrl($redirectUrl);
         }
     }
 

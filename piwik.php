@@ -8,9 +8,10 @@
  * @package Piwik
  */
 
-use Piwik\Common;
+use Piwik\Url;
 use Piwik\Tracker;
 use Piwik\Tracker\Queue;
+use Piwik\Tracker\Queue\Processor as QueueProcessor;
 
 // Note: if you wish to debug the Tracking API please see this documentation:
 // http://developer.piwik.org/api-reference/tracking-api#debugging-the-tracker
@@ -87,26 +88,46 @@ require_once PIWIK_INCLUDE_PATH . '/core/Cookie.php';
 session_cache_limiter('nocache');
 @date_default_timezone_set('UTC');
 
-$process = new Tracker();
+$tracker = new Tracker();
 
-if ($process->isEnabled()) {
+if ($tracker->isEnabled()) {
     ob_start();
 }
 
-$process->setUp();
+$tracker->setUp();
 
-\Piwik\Log::warning('called');
-\Piwik\Log::warning((int)Common::isPhpCliMode());
+if ($tracker->isEnabled()) {
 
-if ($process->isEnabled()) {
+    $redirectUrl = $tracker->shouldPerformRedirectToUrl();
+
+    if (!empty($redirectUrl)) {
+        Url::redirectToUrlNoExit($redirectUrl);
+    }
+
     $queue = new Queue();
 
     try {
 
         if ($queue->isEnabled()) {
-            $queue->popRequests($process->getRequests(), $_SERVER);
+            $queue->popRequests($tracker->getRequests(), $_SERVER);
+
+            $processor = new QueueProcessor($queue);
+            if ($processor->shouldProcess()) {
+
+                set_time_limit(0);
+                header("Connection: close\r\n", true);
+                header("Content-Encoding: none\r\n", true);
+                header('Content-Length: ' . ob_get_length(), true);
+                ob_end_flush();
+                ob_flush();
+                flush();
+
+                $processor->process($tracker);
+                $processor->finishProcess();
+            }
+
         } else {
-            $process->main();
+            $tracker->main();
         }
 
     } catch (Exception $e) {
@@ -116,5 +137,5 @@ if ($process->isEnabled()) {
 
     ob_end_flush();
 
-    $process->tearDown();
+    $tracker->tearDown();
 }

@@ -20,27 +20,11 @@ class Queue
      */
     private $backend;
     private $key = 'trackingQueueV1';
-    private $lockKey = 'trackingQueueLock';
-    private $numRequestsToProcessAtSameTime = 3;
+    private $numRequestsToProcessAtSameTime = 50;
 
     public function __construct()
     {
         $this->backend = new Redis();
-    }
-
-    public function lock($ttlInSeconds)
-    {
-        $this->backend->save($this->lockKey, 1, $ttlInSeconds);
-    }
-
-    public function unlock()
-    {
-        $this->backend->delete($this->lockKey);
-    }
-
-    public function isLocked()
-    {
-        return $this->backend->exists($this->lockKey);
     }
 
     public function popRequests($requests, $server)
@@ -58,19 +42,19 @@ class Queue
             $values[] = json_encode($request);
         }
 
-        $this->backend->popValues($this->key, $values);
+        $this->backend->appendValuesToList($this->key, $values);
     }
 
     public function shouldProcess()
     {
-        $numRequests = $this->backend->getNumValues($this->key);
+        $numRequests = $this->backend->getNumValuesInList($this->key);
 
         return $numRequests >= $this->numRequestsToProcessAtSameTime;
     }
 
-    public function shiftRequests()
+    public function getRequestsToProcess()
     {
-        $values = $this->backend->shiftValues($this->key, $this->numRequestsToProcessAtSameTime);
+        $values = $this->backend->getFirstXValuesFromList($this->key, $this->numRequestsToProcessAtSameTime);
 
         $requests = array();
         foreach ($values as $value) {
@@ -78,6 +62,11 @@ class Queue
         }
 
         return $requests;
+    }
+
+    public function markRequestsAsProcessed()
+    {
+        $this->backend->removeFirstXValuesFromList($this->key, $this->numRequestsToProcessAtSameTime);
     }
 
     public function isEnabled()

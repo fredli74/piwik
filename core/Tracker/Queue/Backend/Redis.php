@@ -26,7 +26,7 @@ class Redis
         }
     }
 
-    public function popValues($key, $values)
+    public function appendValuesToList($key, $values)
     {
         array_unshift($values, $key);
 
@@ -35,31 +35,33 @@ class Redis
         call_user_func_array(array($redis, 'rPush'), $values);
     }
 
-    public function shiftValues($key, $stop)
+    public function getFirstXValuesFromList($key, $numValues)
     {
         $redis  = $this->getRedis();
-        $values = $redis->lRange($key, 0, $stop);
-        $redis->ltrim($key, $stop - 1, -1);
+        $values = $redis->lRange($key, 0, $numValues);
 
         return $values;
     }
 
-    public function getNumValues($key)
+    public function removeFirstXValuesFromList($key, $numValues)
+    {
+        $redis = $this->getRedis();
+        $redis->ltrim($key, $numValues, -1);
+    }
+
+    public function getNumValuesInList($key)
     {
         $redis = $this->getRedis();
 
         return $redis->lLen($key);
     }
 
-    public function save($key, $value, $ttlInSeconds)
+    public function setIfNotExists($key, $value)
     {
-        $redis = $this->getRedis();
+        $redis  = $this->getRedis();
+        $wasSet = $redis->setnx($key, $value);
 
-        if ($ttlInSeconds > 0) {
-            return $redis->setex($key, $ttlInSeconds, $value);
-        }
-
-        return $redis->set($key, $value);
+        return $wasSet;
     }
 
     public function delete($key)
@@ -69,11 +71,11 @@ class Redis
         return $redis->delete($key) > 0;
     }
 
-    public function exists($key)
+    public function expire($key, $ttlInSeconds)
     {
         $redis = $this->getRedis();
 
-        return $redis->exists($key);
+        return $redis->expire($key, $ttlInSeconds);
     }
 
     private function getRedis()
