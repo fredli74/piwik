@@ -9,13 +9,13 @@
 
 language: php
 
-services:
-  - redis-server
-
 php:
   - 5.6
   - 5.3.3
 #  - hhvm
+
+services:
+  - redis-server
 
 # Separate different test suites
 env:
@@ -158,15 +158,6 @@ after_script:
 after_success:
   - cd $PIWIK_ROOT_DIR
   - ./tests/travis/generate_docs.sh
-
-services:
-  - redis-server
-
-
-
-
-
-
 
 notifications:
   slack:
