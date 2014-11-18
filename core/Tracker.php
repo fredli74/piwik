@@ -93,9 +93,8 @@ class Tracker
      *
      * @param Tracker\Handler  $handler
      * @param Tracker\Requests $requests
-     * @param Tracker\Response $response
      */
-    public function main($handler, $requests, $response)
+    public function main($handler, $requests)
     {
         if (!$this->shouldRecordStatistics()) {
             return;
@@ -104,12 +103,12 @@ class Tracker
         if ($requests->hasRequests()) {
             try {
 
-                $handler->onStartTrackRequests($this, $requests, $response);
-                $handler->process($this, $requests, $response);
-                $handler->onAllRequestsTracked($this, $requests, $response);
+                $handler->onStartTrackRequests($this, $requests);
+                $handler->process($this, $requests);
+                $handler->onAllRequestsTracked($this, $requests);
 
             } catch (Exception $e) {
-                $handler->onException($this, $response, $e);
+                $handler->onException($this, $e);
             }
         }
     }

@@ -15,7 +15,12 @@ use Exception;
 
 class Handler extends Tracker\BulkTracking\Handler
 {
-    public function onException(Tracker $tracker, Tracker\Response $response, Exception $e)
+    public function __construct()
+    {
+        $this->setResponse(new Queue\Response());
+    }
+
+    public function onException(Tracker $tracker, Exception $e)
     {
         $this->rollbackTransaction();
         $this->beginTransaction();

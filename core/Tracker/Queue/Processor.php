@@ -39,9 +39,8 @@ class Processor
 
     public function process()
     {
-        $handler  = new Queue\Processor\Handler();
         $tracker  = new Tracker();
-        $response = new Tracker\Queue\Response();
+        $handler  = new Queue\Processor\Handler();
         $requests = new Tracker\Requests();
 
         while ($this->queue->shouldProcess()) {
@@ -52,7 +51,7 @@ class Processor
             //$requests->setTokenAuth();
             //$requests->setServer();
 
-            $tracker->main($handler, $requests, $response);
+            $tracker->main($handler, $requests);
 
             $this->queue->markRequestsAsProcessed();
         }

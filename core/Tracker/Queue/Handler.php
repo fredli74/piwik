@@ -21,12 +21,14 @@ class Handler extends Tracker\Handler
      */
     private $queue;
 
-    public function __construct($queue)
+    public function __construct()
     {
-        $this->queue = $queue;
+        $this->setResponse(new Response());
+
+        $this->queue = new Queue;
     }
 
-    public function process(Tracker $tracker, Tracker\Requests $requests, Tracker\Response $response)
+    public function process(Tracker $tracker, Tracker\Requests $requests)
     {
         $this->queue->popRequests($requests->getRequests(), $_SERVER);
 

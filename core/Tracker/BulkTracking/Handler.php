@@ -17,24 +17,29 @@ class Handler extends Tracker\Handler
 {
     private $transactionId = null;
 
-    public function onStartTrackRequests(Tracker $tracker, Tracker\Requests $requests, Tracker\Response $response)
+    public function __construct()
+    {
+        $this->setResponse(new Response());
+    }
+
+    public function onStartTrackRequests(Tracker $tracker, Tracker\Requests $requests)
     {
         if ($this->isTransactionSupported()) {
             $this->beginTransaction();
         }
     }
 
-    public function onAllRequestsTracked(Tracker $tracker, Tracker\Requests $requests, Tracker\Response $response)
+    public function onAllRequestsTracked(Tracker $tracker, Tracker\Requests $requests)
     {
         $this->commitTransaction();
 
         // Do not run schedule task if we are importing logs or doing custom tracking (as it could slow down)
     }
 
-    public function onException(Tracker $tracker, Tracker\Response $response, Exception $e)
+    public function onException(Tracker $tracker, Exception $e)
     {
         $this->rollbackTransaction();
-        parent::onException($tracker, $response, $e);
+        parent::onException($tracker, $e);
     }
 
     protected function beginTransaction()

@@ -20,7 +20,22 @@ use Piwik\Url;
 // TODO create interfaces for Handler and Response
 class Handler
 {
-    public function init(Tracker $tracker, Tracker\Requests $requests, Tracker\Response $response)
+    /**
+     * @var Response
+     */
+    private $response;
+
+    public function __construct()
+    {
+        $this->setResponse(new Response());
+    }
+
+    public function setResponse($response)
+    {
+        $this->response = $response;
+    }
+
+    public function init(Tracker $tracker, Tracker\Requests $requests)
     {
         $tracker->init();
 
@@ -31,21 +46,21 @@ class Handler
             Url::redirectToUrlNoExit($redirectUrl);
         }
 
-        $response->init($tracker);
+        $this->response->init($tracker);
     }
 
-    public function process(Tracker $tracker, Tracker\Requests $requests, Tracker\Response $response)
+    public function process(Tracker $tracker, Tracker\Requests $requests)
     {
         foreach ($requests->getRequests() as $request) {
             $tracker->trackRequest($request, $requests->getTokenAuth());
         }
     }
 
-    public function onStartTrackRequests(Tracker $tracker, Tracker\Requests $requests, Tracker\Response $response)
+    public function onStartTrackRequests(Tracker $tracker, Tracker\Requests $requests)
     {
     }
 
-    public function onAllRequestsTracked(Tracker $tracker, Tracker\Requests $requests, Tracker\Response $response)
+    public function onAllRequestsTracked(Tracker $tracker, Tracker\Requests $requests)
     {
         $tasks = new ScheduledTasksRunner();
         if ($tasks->shouldRun($tracker)) {
@@ -53,7 +68,7 @@ class Handler
         }
     }
 
-    public function onException(Tracker $tracker, Tracker\Response $response, Exception $e)
+    public function onException(Tracker $tracker, Exception $e)
     {
         Common::printDebug("Exception: " . $e->getMessage());
 
@@ -65,20 +80,20 @@ class Handler
         }
 
         $tracker->disconnectDatabase();
-        $response->outputException($tracker, $e, $statusCode);
+        $this->response->outputException($tracker, $e, $statusCode);
 
         die(1);
         exit;
     }
 
-    public function finish(Tracker $tracker, Tracker\Requests $requests, Tracker\Response $response)
+    public function finish(Tracker $tracker, Tracker\Requests $requests)
     {
         Piwik::postEvent('Tracker.end');
 
         $tracker->disconnectDatabase();
 
-        $response->outputResponse($tracker);
-        $response->send();
+        $this->response->outputResponse($tracker);
+        $this->response->send();
     }
 
 

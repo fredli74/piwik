@@ -104,24 +104,21 @@ try {
 
     if ($queue->isEnabled()) {
 
-        $handler  = new Queue\Handler($queue);
-        $response = new Queue\Response();
+        $handler = new Queue\Handler();
         set_time_limit(0);
 
     } else {
 
-        if ($requests->isUsingBulkRequest()) {
-            $response = new Tracker\BulkTracking\Response();
-            $handler  = new Tracker\BulkTracking\Handler();
+        if ($requests->isUsingBulkRequest()) {;
+            $handler = new Tracker\BulkTracking\Handler();
         } else {
-            $response = new Tracker\Response();
-            $handler  = new Tracker\Handler();
+            $handler = new Tracker\Handler();
         }
     }
 
-    $handler->init($tracker, $requests, $response);
-    $tracker->main($handler, $requests, $response);
-    $handler->finish($tracker, $requests, $response);
+    $handler->init($tracker, $requests);
+    $tracker->main($handler, $requests);
+    $handler->finish($tracker, $requests);
 
 } catch (Exception $e) {
     echo "Error:" . $e->getMessage();
