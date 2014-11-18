@@ -517,7 +517,7 @@ timeout = 0.0
 
 [Tracker]
 
-queue_enabled=1
+queue_enabled=0
 
 ; Piwik uses first party cookies by default. If set to 1,
 ; the visit ID cookie will be set on the Piwik server domain as well
