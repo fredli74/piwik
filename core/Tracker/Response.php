@@ -55,7 +55,7 @@ class Response
 
             echo $headerPage . '<p>' . $this->getMessageFromException($e) . '</p>' . $trailer . $footerPage;
         } else {
-            $this->sendResponse($tracker);
+            $this->outputApiResponse($tracker);
         }
     }
 
@@ -65,13 +65,13 @@ class Response
     public function outputResponse(Tracker $tracker)
     {
         if (!$tracker->shouldRecordStatistics()) {
-            $this->sendResponse($tracker);
+            $this->outputApiResponse($tracker);
             Common::printDebug("Logging disabled, display transparent logo");
         } elseif (0 === $tracker->getCountOfLoggedRequests()) {
             Common::printDebug("Empty request => Piwik page");
             echo "<a href='/'>Piwik</a> is a free/libre web <a href='http://piwik.org'>analytics</a> that lets you keep control of your data.";
         } else {
-            $this->sendResponse($tracker);
+            $this->outputApiResponse($tracker);
             Common::printDebug("Nothing to notice => default behaviour");
         }
 
@@ -104,7 +104,7 @@ class Response
         return ob_get_contents();
     }
 
-    private function sendResponse(Tracker $tracker)
+    private function outputApiResponse(Tracker $tracker)
     {
         if ($tracker->isDebugModeEnabled()) {
             return;

@@ -109,7 +109,7 @@ try {
 
     } else {
 
-        if ($requests->isUsingBulkRequest()) {;
+        if ($requests->isUsingBulkRequest()) {
             $handler = new Tracker\BulkTracking\Handler();
         } else {
             $handler = new Tracker\Handler();

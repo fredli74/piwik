@@ -44,28 +44,30 @@ class Handler extends Tracker\Handler
 
     protected function beginTransaction()
     {
-        if (!empty($this->transactionId)) {
-            return;
+        if (empty($this->transactionId)) {
+            $this->transactionId = $this->getDb()->beginTransaction();
         }
-
-        $this->transactionId = Tracker::getDatabase()->beginTransaction();
     }
 
     private function commitTransaction()
     {
-        if (empty($this->transactionId)) {
-            return;
+        if (!empty($this->transactionId)) {
+            $this->getDb()->commit($this->transactionId);
+            $this->transactionId = null;
         }
-        Tracker::getDatabase()->commit($this->transactionId);
-        $this->transactionId = null;
     }
 
     protected function rollbackTransaction()
     {
-        if (empty($this->transactionId)) {
-            return;
+        if (!empty($this->transactionId)) {
+            $this->getDb()->rollback($this->transactionId);
+            $this->transactionId = null;
         }
-        Tracker::getDatabase()->rollback($this->transactionId);
+    }
+
+    private function getDb()
+    {
+        return Tracker::getDatabase();
     }
 
     /**

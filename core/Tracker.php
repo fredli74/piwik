@@ -18,6 +18,8 @@ use Piwik\Tracker\TrackerConfig;
 use Piwik\Tracker\Visit;
 use Piwik\Tracker\VisitInterface;
 use Piwik\Plugin\Manager as PluginManager;
+use Piwik\Error;
+use Piwik\ExceptionHandler;
 
 /**
  * Class used by the logging script piwik.php called by the javascript tag.
@@ -69,10 +71,8 @@ class Tracker
 
         $GLOBALS['PIWIK_TRACKER_DEBUG'] = (bool) TrackerConfig::getConfigValue('debug');
         if ($this->isDebugModeEnabled()) {
-            require_once PIWIK_INCLUDE_PATH . '/core/Error.php';
-            \Piwik\Error::setErrorHandler();
-            require_once PIWIK_INCLUDE_PATH . '/core/ExceptionHandler.php';
-            \Piwik\ExceptionHandler::setUp();
+            Error::setErrorHandler();
+            ExceptionHandler::setUp();
 
             Common::printDebug("Debug enabled - Input parameters: ");
             Common::printDebug(var_export($_GET, true));
