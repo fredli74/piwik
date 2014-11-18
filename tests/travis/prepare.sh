@@ -47,4 +47,5 @@ chmod a+rw ./plugins/*/tests/System/processed
 # install phpredis
 wget https://github.com/nicolasff/phpredis/archive/2.2.5.zip -O php-redis.zip && unzip php-redis.zip
 cd phpredis-2.2.5/ && phpize && ./configure && make && make install
+cd ..
 rm -rf phpredis-2.2.5
