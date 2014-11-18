@@ -15,7 +15,7 @@ php:
 #  - hhvm
 
 services:
-  - redis-server
+- redis-server
 
 # Separate different test suites
 env:
@@ -158,6 +158,11 @@ after_script:
 after_success:
   - cd $PIWIK_ROOT_DIR
   - ./tests/travis/generate_docs.sh
+
+services:
+  - redis-server
+
+
 
 notifications:
   slack:
