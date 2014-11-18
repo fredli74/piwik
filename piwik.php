@@ -91,53 +91,41 @@ session_cache_limiter('nocache');
 
 $tracker = new Tracker();
 
-if ($tracker->isEnabled()) {
-
-    ob_start();
-
-    $tracker->setUp();
-
-    $requests    = new Requests();
-    $redirectUrl = $tracker->shouldPerformRedirectToUrl($requests);
-
-    if (!empty($redirectUrl)) {
-        Url::redirectToUrlNoExit($redirectUrl);
-    }
-
-    $queue = new Queue();
-
-    try {
-
-        if ($queue->isEnabled()) {
-            $queue->popRequests($requests->getRequests(), $_SERVER);
-
-            $processor = new QueueProcessor($queue);
-            if ($processor->shouldProcess()) {
-
-                set_time_limit(0);
-                $processor->process($tracker);
-                $processor->finishProcess();
-            }
-
-        } else {
-
-            if ($requests->isUsingBulkRequest()) {
-                $response = new Tracker\BulkTracking\Response();
-            } else {
-                $response = new Tracker\Response();
-            }
-
-            $response->init();
-            $tracker->main($requests, $response);
-            $response->send();
-        }
-
-    } catch (Exception $e) {
-        echo "Error:" . $e->getMessage();
-        exit(1);
-    }
-
-    $tracker->tearDown();
-
-    ob_end_flush();
+if (!$tracker->isEnabled()) {
+    exit;
 }
+
+ob_start();
+$tracker->setUp(); // could be moved to handler->init() but don't think it belongs there
+
+try {
+
+    $requests = new Requests();
+    $queue    = new Queue();
+
+    if ($queue->isEnabled()) {
+
+        $handler  = new Queue\Handler($queue);
+        $response = new Queue\Response();
+
+    } else {
+
+        if ($requests->isUsingBulkRequest()) {
+            $response = new Tracker\BulkTracking\Response();
+            $handler  = new Tracker\BulkTracking\Handler();
+        } else {
+            $response = new Tracker\Response();
+            $handler  = new Tracker\Handler();
+        }
+    }
+
+    $handler->init($tracker, $requests, $response);
+    $handler->process($tracker, $requests, $response);
+    $handler->finish($tracker, $requests, $response);
+
+} catch (Exception $e) {
+    echo "Error:" . $e->getMessage();
+    exit(1);
+}
+
+ob_end_flush();

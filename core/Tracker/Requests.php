@@ -10,7 +10,6 @@ namespace Piwik\Tracker;
 
 use Exception;
 use Piwik\Common;
-use Piwik\Config;
 use Piwik\Plugins\SitesManager\SiteUrls;
 use Piwik\Url;
 
@@ -20,7 +19,7 @@ class Requests
     /**
      * The set of visits to track.
      *
-     * @var array
+     * @var Request[]
      */
     private $requests = null;
 
@@ -45,7 +44,9 @@ class Requests
 
     public function isUsingBulkRequest()
     {
-        return is_array($this->requests) && count($this->requests) > 1;
+        $requests = $this->getRequests();
+
+        return is_array($requests) && count($requests) > 1;
     }
 
     public function getRequests()
@@ -93,7 +94,9 @@ class Requests
 
     private function isBulkTrackingRequireTokenAuth()
     {
-        return !empty(Config::getInstance()->Tracker['bulk_requests_require_authentication']);
+        $requiresAuth = TrackerConfig::getConfigValue('bulk_requests_require_authentication');
+
+        return !empty($requiresAuth);
     }
 
     private function initBulkTrackingRequests($rawData)
@@ -167,19 +170,19 @@ class Requests
         return file_get_contents("php://input");
     }
 
-    public function getRedirectUrl()
+    private function getRedirectUrl()
     {
         return Common::getRequestVar('redirecturl', false, 'string');
     }
 
-    public function hasRedirectUrl()
+    private function hasRedirectUrl()
     {
         $redirectUrl = $this->getRedirectUrl();
 
         return !empty($redirectUrl);
     }
 
-    public function getAllSiteIdsWithinRequest()
+    private function getAllSiteIdsWithinRequest()
     {
         if (empty($this->requests)) {
             return array();
@@ -192,6 +195,40 @@ class Requests
         }
 
         return array_unique($siteIds);
+    }
+
+    public function shouldPerformRedirectToUrl()
+    {
+        if (!$this->hasRedirectUrl()) {
+            return false;
+        }
+
+        if (!$this->hasRequests()) {
+            return false;
+        }
+
+        $redirectUrl = $this->getRedirectUrl();
+        $host        = Url::getHostFromUrl($redirectUrl);
+
+        if (empty($host)) {
+            return false;
+        }
+
+        $urls     = new SiteUrls();
+        $siteUrls = $urls->getAllCachedSiteUrls();
+        $siteIds  = $this->getAllSiteIdsWithinRequest();
+
+        foreach ($siteIds as $siteId) {
+            if (empty($siteUrls[$siteId])) {
+                continue;
+            }
+
+            if (Url::isHostInUrls($host, $siteUrls[$siteId])) {
+                return $redirectUrl;
+            }
+        }
+
+        return false;
     }
 
 }

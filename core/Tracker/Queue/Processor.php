@@ -42,25 +42,24 @@ class Processor
         return $this->queue->shouldProcess() && $this->acquireLock();
     }
 
-    public function process(Tracker $tracker)
+    public function process()
     {
-        $response = new Response();
-        $response->init();
+        $handler  = new Queue\Processor\Handler();
+        $tracker  = new Tracker();
+        $response = new Tracker\Queue\Response();
+        $requests = new Tracker\Requests();
 
         do {
             $this->expireLock($ttlInSeconds = 120);
 
             $queuedRequests = $this->queue->getRequestsToProcess();
-
-            $requests = new Tracker\Requests();
             $requests->setRequests($queuedRequests);
-            $tracker->main($requests, $response);
+
+            $handler->process($tracker, $requests, $response);
 
             $this->queue->markRequestsAsProcessed();
 
         } while ($this->queue->shouldProcess());
-
-        $response->send();
     }
 
     public function finishProcess()

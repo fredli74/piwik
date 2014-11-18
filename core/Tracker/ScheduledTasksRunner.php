@@ -30,7 +30,7 @@ class ScheduledTasksRunner
             return false;
         }
 
-        return !$tracker->isLoggingDisabled();
+        return $tracker->shouldRecordStatistics();
     }
 
     /**
@@ -46,7 +46,7 @@ class ScheduledTasksRunner
 
         // Currently, there are no hourly tasks. When there are some,
         // this could be too aggressive minimum interval (some hours would be skipped in case of low traffic)
-        $minimumInterval = Config::getInstance()->Tracker['scheduled_tasks_min_interval'];
+        $minimumInterval = TrackerConfig::getConfigValue('scheduled_tasks_min_interval');
 
         // If the user disabled browser archiving, he has already setup a cron
         // To avoid parallel requests triggering the Scheduled Tasks,

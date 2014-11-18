@@ -71,9 +71,7 @@ class Queue
 
     public function isEnabled()
     {
-        $trackerConfig = Config::getInstance()->Tracker;
-
-        $enabled = $trackerConfig['queue_enabled'];
+        $enabled = TrackerConfig::getConfigValue('queue_enabled');
 
         if ($enabled) {
             $this->backend->checkIsInstalled();

@@ -11,7 +11,9 @@ namespace Piwik\Tracker;
 use Exception;
 use Piwik\Common;
 use Piwik\Profiler;
+use Piwik\Timer;
 use Piwik\Tracker;
+use Piwik\Tracker\Db as TrackerDb;
 
 /**
  * Class used by the logging script piwik.php called by the javascript tag.
@@ -33,9 +35,14 @@ class Response
         }
     }
 
-    public function init()
+    public function init(Tracker $tracker)
     {
         ob_start();
+        $this->timer = new Timer();
+
+        if ($tracker->isDebugModeEnabled()) {
+            TrackerDb::enableProfiling();
+        }
     }
 
     public function send()
@@ -71,9 +78,6 @@ class Response
         } else {
             $this->sendResponse($tracker);
         }
-
-        die(1);
-        exit;
     }
 
     /**
@@ -81,23 +85,15 @@ class Response
      */
     public function outputResponse(Tracker $tracker)
     {
-        switch ($tracker->getState()) {
-            case Tracker::STATE_LOGGING_DISABLE:
-                $this->sendResponse($tracker);
-                Common::printDebug("Logging disabled, display transparent logo");
-                break;
-
-            case Tracker::STATE_EMPTY_REQUEST:
-                Common::printDebug("Empty request => Piwik page");
-                echo "<a href='/'>Piwik</a> is a free/libre web <a href='http://piwik.org'>analytics</a> that lets you keep control of your data.";
-                break;
-
-            case Tracker::STATE_NOSCRIPT_REQUEST:
-            case Tracker::STATE_NOTHING_TO_NOTICE:
-            default:
-                $this->sendResponse($tracker);
-                Common::printDebug("Nothing to notice => default behaviour");
-                break;
+        if (!$tracker->shouldRecordStatistics()) {
+            $this->sendResponse($tracker);
+            Common::printDebug("Logging disabled, display transparent logo");
+        } elseif (0 === $tracker->getCountOfLoggedRequests()) {
+            Common::printDebug("Empty request => Piwik page");
+            echo "<a href='/'>Piwik</a> is a free/libre web <a href='http://piwik.org'>analytics</a> that lets you keep control of your data.";
+        } else {
+            $this->sendResponse($tracker);
+            Common::printDebug("Nothing to notice => default behaviour");
         }
 
         Common::printDebug("End of the page.");
@@ -106,6 +102,11 @@ class Response
             $db = Tracker::getDatabase();
             $db->recordProfiling();
             Profiler::displayDbTrackerProfile($db);
+        }
+
+        if ($tracker->isDebugModeEnabled()) {
+            Common::printDebug($_COOKIE);
+            Common::printDebug((string)$this->timer);
         }
     }
 

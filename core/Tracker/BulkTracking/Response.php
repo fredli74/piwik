@@ -47,9 +47,6 @@ class Response extends Tracker\Response
 
         Common::sendHeader('Content-Type: application/json');
         echo json_encode($result);
-
-        die(1);
-        exit;
     }
 
     /**

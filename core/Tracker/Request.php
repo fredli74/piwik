@@ -84,7 +84,7 @@ class Request
      */
     protected function authenticateTrackingApi($tokenAuthFromBulkRequest)
     {
-        $shouldAuthenticate = Config::getInstance()->Tracker['tracking_requests_require_authentication'];
+        $shouldAuthenticate = TrackerConfig::getConfigValue('tracking_requests_require_authentication');
         if ($shouldAuthenticate) {
             $tokenAuth = $tokenAuthFromBulkRequest ? $tokenAuthFromBulkRequest : Common::getRequestVar('token_auth', false, 'string', $this->params);
             try {
@@ -485,17 +485,17 @@ class Request
 
     protected function getCookieName()
     {
-        return Config::getInstance()->Tracker['cookie_name'];
+        return TrackerConfig::getConfigValue('cookie_name');
     }
 
     protected function getCookieExpire()
     {
-        return $this->getCurrentTimestamp() + Config::getInstance()->Tracker['cookie_expire'];
+        return $this->getCurrentTimestamp() + TrackerConfig::getConfigValue('cookie_expire');
     }
 
     protected function getCookiePath()
     {
-        return Config::getInstance()->Tracker['cookie_path'];
+        return TrackerConfig::getConfigValue('cookie_path');
     }
 
     /**

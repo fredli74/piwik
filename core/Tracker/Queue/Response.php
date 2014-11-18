@@ -23,11 +23,11 @@ use Piwik\Tracker\Response as TrackerResponse;
 class Response extends TrackerResponse
 {
 
-    public function init()
+    public function init(Tracker $tracker)
     {
         $this->sendResponseToBrowserDirectly();
 
-        ob_start();
+        parent::init($tracker);
     }
 
     public function send()

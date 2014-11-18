@@ -93,6 +93,8 @@ class Manager extends Singleton
         'ExampleTheme'
     );
 
+    private $trackerPluginsNotToLoad;
+
     /**
      * Loads plugin that are enabled
      */
@@ -108,7 +110,7 @@ class Manager extends Singleton
     public function loadCorePluginsDuringTracker()
     {
         $pluginsToLoad = Config::getInstance()->Plugins['Plugins'];
-        $pluginsToLoad = array_diff($pluginsToLoad, Tracker::getPluginsNotToLoad());
+        $pluginsToLoad = array_diff($pluginsToLoad, $this->getTrackerPluginsNotToLoad());
         $this->loadPlugins($pluginsToLoad);
     }
 
@@ -145,10 +147,29 @@ class Manager extends Singleton
             return array();
         }
 
-        $pluginsTracker = array_diff($pluginsTracker, Tracker::getPluginsNotToLoad());
+        $pluginsTracker = array_diff($pluginsTracker, $this->getTrackerPluginsNotToLoad());
         $this->doNotLoadAlwaysActivatedPlugins();
         $this->loadPlugins($pluginsTracker);
         return $pluginsTracker;
+    }
+
+    /**
+     * Do not load the specified plugins (used during testing, to disable Provider plugin)
+     * @param array $plugins
+     */
+    public function setTrackerPluginsNotToLoad($plugins)
+    {
+        $this->trackerPluginsNotToLoad = $plugins;
+    }
+
+    /**
+     * Get list of plugins to not load
+     *
+     * @return array
+     */
+    private function getTrackerPluginsNotToLoad()
+    {
+        return $this->trackerPluginsNotToLoad;
     }
 
     public function getCorePluginsDisabledByDefault()
