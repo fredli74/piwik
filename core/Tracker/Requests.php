@@ -48,7 +48,7 @@ class Requests
             }
 
             if (!$request instanceof Request) {
-                $request = new Request($request);
+                $request = new Request($request, $this->getTokenAuth());
             }
 
             $this->requests[] = $request;
@@ -58,6 +58,7 @@ class Requests
     public function setTokenAuth($tokenAuth)
     {
         $this->tokenAuth = $tokenAuth;
+        // TODO update the tokenAuth of all Request instances? in case setRequest is called before setTokenAuth
     }
 
     public function isUsingBulkRequest()
