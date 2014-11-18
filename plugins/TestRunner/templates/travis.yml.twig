@@ -11,6 +11,9 @@
 
 language: php
 
+services:
+  - redis-server
+
 {% if phpVersions|default is empty %}
 php:
   - 5.6
@@ -21,9 +24,6 @@ php:
 {% for version in phpVersions %}  - {{ version|raw }}
 {% endfor %}
 {% endif %}
-
-services:
-- redis-server
 
 # Separate different test suites
 {% if existingEnv|default is empty -%}
