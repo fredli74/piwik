@@ -8,7 +8,6 @@
  */
 namespace Piwik\Tracker;
 
-use Piwik\Config;
 use Piwik\Tracker;
 use Piwik\Translate;
 use Piwik\Tracker\Queue\Backend\Redis;
@@ -20,7 +19,7 @@ class Queue
      */
     private $backend;
     private $key = 'trackingQueueV1';
-    private $numRequestsToProcessAtSameTime = 50;
+    private $numRequestsToProcessAtSameTime = 3;
 
     public function __construct()
     {
@@ -58,7 +57,7 @@ class Queue
 
         $requests = array();
         foreach ($values as $value) {
-            $requests[] = json_decode($value);
+            $requests[] = json_decode($value, true);
         }
 
         return $requests;

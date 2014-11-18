@@ -96,7 +96,6 @@ if (!$tracker->isEnabled()) {
 }
 
 ob_start();
-$tracker->setUp(); // could be moved to handler->init() but don't think it belongs there
 
 try {
 
@@ -107,6 +106,7 @@ try {
 
         $handler  = new Queue\Handler($queue);
         $response = new Queue\Response();
+        set_time_limit(0);
 
     } else {
 
@@ -120,7 +120,7 @@ try {
     }
 
     $handler->init($tracker, $requests, $response);
-    $handler->process($tracker, $requests, $response);
+    $tracker->main($handler, $requests, $response);
     $handler->finish($tracker, $requests, $response);
 
 } catch (Exception $e) {

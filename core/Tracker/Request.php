@@ -599,6 +599,11 @@ class Request
         return count($this->params);
     }
 
+    public function isEmptyRequest()
+    {
+        return 0 === $this->getParamsCount();
+    }
+
     const GENERATION_TIME_MS_MAXIMUM = 3600000; // 1 hour
 
     public function getPageGenerationTime()

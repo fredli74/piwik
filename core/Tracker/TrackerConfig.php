@@ -26,7 +26,6 @@ class TrackerConfig
         Config::getInstance()->Tracker = $section;
     }
 
-
     public static function getConfigValue($name)
     {
         $config = self::getConfig();

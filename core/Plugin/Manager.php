@@ -93,7 +93,7 @@ class Manager extends Singleton
         'ExampleTheme'
     );
 
-    private $trackerPluginsNotToLoad;
+    private $trackerPluginsNotToLoad = array();
 
     /**
      * Loads plugin that are enabled

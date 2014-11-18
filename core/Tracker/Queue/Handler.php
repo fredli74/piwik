@@ -9,8 +9,10 @@
 
 namespace Piwik\Tracker\Queue;
 
+use Piwik\Common;
 use Piwik\Tracker;
 use Piwik\Tracker\Queue;
+use Exception;
 
 class Handler extends Tracker\Handler
 {
@@ -28,15 +30,30 @@ class Handler extends Tracker\Handler
     {
         $this->queue->popRequests($requests->getRequests(), $_SERVER);
 
-        $processor = new Processor($this->queue);
-        if ($processor->shouldProcess()) {
+        Common::printDebug('Added requests to queue');
 
-            set_time_limit(0);
-            $processor->process();
-            $processor->finishProcess();
-        }
+        $this->processQueueIfPossible();
 
         return false;
+    }
+
+    private function processQueueIfPossible()
+    {
+        $processor = new Processor($this->queue);
+
+        if ($this->queue->shouldProcess() && $processor->acquireLock()) {
+
+            Common::printDebug('We are going to process the queue');
+
+            try {
+                $processor->process();
+            } catch (Exception $e) {
+                Common::printDebug('Failed to process queue: ' . $e->getMessage());
+                // TODO how could we report errors better as the response is already sent? also monitoring ...
+            }
+
+            $processor->unlock();
+        }
     }
 
 }

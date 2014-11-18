@@ -12,19 +12,19 @@ namespace Piwik\Tracker;
 use Piwik\Common;
 use Piwik\Exception\InvalidRequestParameterException;
 use Piwik\Exception\UnexpectedWebsiteFoundException;
+use Piwik\Piwik;
 use Piwik\Tracker;
 use Exception;
 use Piwik\Url;
 
-/**
- * This class represents a page view, tracking URL, page title and generation time.
- *
- */
+// TODO create interfaces for Handler and Response
 class Handler
 {
     public function init(Tracker $tracker, Tracker\Requests $requests, Tracker\Response $response)
     {
-        // could be a handler or a decorator for a handler
+        $tracker->init();
+
+        // maybe belongs to response?
         $redirectUrl = $requests->shouldPerformRedirectToUrl();
 
         if (!empty($redirectUrl)) {
@@ -36,7 +36,9 @@ class Handler
 
     public function process(Tracker $tracker, Tracker\Requests $requests, Tracker\Response $response)
     {
-        $tracker->main($this, $requests, $response);
+        foreach ($requests->getRequests() as $request) {
+            $tracker->trackRequest($request, $requests->getTokenAuth());
+        }
     }
 
     public function onStartTrackRequests(Tracker $tracker, Tracker\Requests $requests, Tracker\Response $response)
@@ -62,6 +64,7 @@ class Handler
             $statusCode = 400;
         }
 
+        $tracker->disconnectDatabase();
         $response->outputException($tracker, $e, $statusCode);
 
         die(1);
@@ -70,6 +73,10 @@ class Handler
 
     public function finish(Tracker $tracker, Tracker\Requests $requests, Tracker\Response $response)
     {
+        Piwik::postEvent('Tracker.end');
+
+        $tracker->disconnectDatabase();
+
         $response->outputResponse($tracker);
         $response->send();
     }

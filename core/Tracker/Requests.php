@@ -28,7 +28,7 @@ class Requests
      *
      * @var string
      */
-    private $tokenAuth = null;
+    private $tokenAuth = false;
 
     /**
      * Whether we're currently using bulk tracking or not.
@@ -39,7 +39,25 @@ class Requests
 
     public function setRequests($requests)
     {
-        $this->requests = $requests;
+        $this->requests = array();
+
+        foreach ($requests as $request) {
+
+            if (empty($request)) {
+                continue;
+            }
+
+            if (!$request instanceof Request) {
+                $request = new Request($request);
+            }
+
+            $this->requests[] = $request;
+        }
+    }
+
+    public function setTokenAuth($tokenAuth)
+    {
+        $this->tokenAuth = $tokenAuth;
     }
 
     public function isUsingBulkRequest()
@@ -56,7 +74,7 @@ class Requests
         }
 
         try {
-            $this->initRequests(null);
+            $this->initRequests();
 
         } catch (Exception $ex) {
             Common::printDebug('Failed to init requests: ' . $ex->getMessage());
@@ -76,6 +94,8 @@ class Requests
 
     protected function initRequests()
     {
+        $this->setRequests(array());
+
         $rawData = $this->getRawBulkRequest();
 
         if (!empty($rawData)) {
@@ -88,8 +108,9 @@ class Requests
             }
         }
 
-        // Not using bulk tracking
-        $this->requests = (!empty($_GET) || !empty($_POST)) ? array($_GET + $_POST) : array();
+        if (!empty($_GET) || !empty($_POST)) {
+            $this->setRequests(array($_GET + $_POST));
+        }
     }
 
     private function isBulkTrackingRequireTokenAuth()
@@ -101,10 +122,14 @@ class Requests
 
     private function initBulkTrackingRequests($rawData)
     {
-        list($this->requests, $this->tokenAuth) = $this->getRequestsArrayFromBulkRequest($rawData);
+        list($requests, $tokenAuth) = $this->getRequestsArrayFromBulkRequest($rawData);
 
-        if (!empty($this->requests)) {
-            foreach ($this->requests as $index => $request) {
+        $this->setTokenAuth($tokenAuth);
+
+        if (!empty($requests)) {
+            $validRequests = array();
+
+            foreach ($requests as $index => $request) {
                 // if a string is sent, we assume its a URL and try to parse it
                 if (is_string($request)) {
                     $params = array();
@@ -112,12 +137,14 @@ class Requests
                     $url = @parse_url($request);
                     if (!empty($url)) {
                         @parse_str($url['query'], $params);
-                        $request = $params;
+                        $validRequests[] = $params;
                     }
+                } else {
+                    $validRequests[] = $request;
                 }
-
-                $this->requests[$index] = new Request($request, $this->tokenAuth);
             }
+
+            $this->setRequests($validRequests);
         }
     }
 
@@ -139,19 +166,25 @@ class Requests
         return array($requests, $tokenAuth);
     }
 
+    private function checkTokenAuthNotEmpty()
+    {
+        $token = $this->getTokenAuth();
+
+        if (empty($token)) {
+            throw new Exception("token_auth must be specified when using Bulk Tracking Import. "
+                . " See <a href='http://developer.piwik.org/api-reference/tracking-api'>Tracking Doc</a>");
+        }
+    }
+
     private function authenticateBulkTrackingRequests()
     {
         if ($this->isBulkTrackingRequireTokenAuth()) {
-            if (empty($this->tokenAuth)) {
-                throw new Exception("token_auth must be specified when using Bulk Tracking Import. "
-                    . " See <a href='http://developer.piwik.org/api-reference/tracking-api'>Tracking Doc</a>");
-            }
 
-            if (!empty($this->requests)) {
-                foreach ($this->requests as $request) {
-                    if (!$request->isAuthenticated()) {
-                        throw new Exception(sprintf("token_auth specified does not have Admin permission for idsite=%s", $requestObj->getIdSite()));
-                    }
+            $this->checkTokenAuthNotEmpty();
+
+            foreach ($this->getRequests() as $request) {
+                if (!$request->isAuthenticated()) {
+                    throw new Exception(sprintf("token_auth specified does not have Admin permission for idsite=%s", $requestObj->getIdSite()));
                 }
             }
         }
@@ -159,7 +192,9 @@ class Requests
 
     public function hasRequests()
     {
-        return !empty($this->requests);
+        $requests = $this->getRequests();
+
+        return !empty($requests);
     }
 
     /**
@@ -189,14 +224,14 @@ class Requests
         }
 
         $siteIds = array();
-
         foreach ($this->requests as $request) {
-            $siteIds[] = (int) $request['idsite'];
+            $siteIds[] = (int) $request->getIdSite();
         }
 
         return array_unique($siteIds);
     }
 
+    // TODO maybe move to reponse? or somewhere else? not sure where!
     public function shouldPerformRedirectToUrl()
     {
         if (!$this->hasRedirectUrl()) {

@@ -37,11 +37,6 @@ class Processor
         $this->backend = new Redis();
     }
 
-    public function shouldProcess()
-    {
-        return $this->queue->shouldProcess() && $this->acquireLock();
-    }
-
     public function process()
     {
         $handler  = new Queue\Processor\Handler();
@@ -49,30 +44,26 @@ class Processor
         $response = new Tracker\Queue\Response();
         $requests = new Tracker\Requests();
 
-        do {
+        while ($this->queue->shouldProcess()) {
             $this->expireLock($ttlInSeconds = 120);
 
             $queuedRequests = $this->queue->getRequestsToProcess();
             $requests->setRequests($queuedRequests);
+            //$requests->setTokenAuth();
+            //$requests->setServer();
 
-            $handler->process($tracker, $requests, $response);
+            $tracker->main($handler, $requests, $response);
 
             $this->queue->markRequestsAsProcessed();
-
-        } while ($this->queue->shouldProcess());
+        }
     }
 
-    public function finishProcess()
-    {
-        $this->unlock();
-    }
-
-    private function acquireLock()
+    public function acquireLock()
     {
         return $this->backend->setIfNotExists($this->lockKey, 1);
     }
 
-    private function unlock()
+    public function unlock()
     {
         $this->backend->delete($this->lockKey);
     }

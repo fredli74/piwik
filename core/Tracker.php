@@ -17,6 +17,7 @@ use Piwik\Tracker\Requests;
 use Piwik\Tracker\TrackerConfig;
 use Piwik\Tracker\Visit;
 use Piwik\Tracker\VisitInterface;
+use Piwik\Plugin\Manager as PluginManager;
 
 /**
  * Class used by the logging script piwik.php called by the javascript tag.
@@ -39,7 +40,7 @@ class Tracker
     public static $initTrackerMode = false;
 
     private $countOfLoggedRequests = 0;
-    private $isInstalled;
+    private $isInstalled = null;
 
     public function isEnabled()
     {
@@ -55,10 +56,14 @@ class Tracker
     {
         $record = TrackerConfig::getConfigValue('record_statistics') != 0;
 
+        if (!$record) {
+            Common::printDebug('Tracking is disabled in the config.ini.php via record_statistics=0');
+        }
+
         return $record && $this->isInstalled();
     }
 
-    public function setUp()
+    public function init()
     {
         \Piwik\FrontController::createConfigObject();
 
@@ -76,7 +81,7 @@ class Tracker
 
     public function isInstalled()
     {
-        if (!is_null($this->isInstalled)) {
+        if (is_null($this->isInstalled)) {
             $this->isInstalled = SettingsPiwik::isPiwikInstalled();
         }
 
@@ -96,24 +101,17 @@ class Tracker
             return;
         }
 
-        if (!empty($requests)) {
+        if ($requests->hasRequests()) {
             try {
 
                 $handler->onStartTrackRequests($this, $requests, $response);
-
-                foreach ($requests->getRequests() as $request) {
-                    $this->trackRequest($request, $requests->getTokenAuth());
-                }
-
+                $handler->process($this, $requests, $response);
                 $handler->onAllRequestsTracked($this, $requests, $response);
 
             } catch (Exception $e) {
                 $handler->onException($this, $response, $e);
             }
         }
-
-        Piwik::postEvent('Tracker.end');
-        $this->disconnectDatabase();
     }
 
     /**
@@ -172,7 +170,7 @@ class Tracker
         return self::$db;
     }
 
-    private function disconnectDatabase()
+    public function disconnectDatabase()
     {
         if ($this->isDatabaseConnected()) {
             self::$db->disconnect();
@@ -180,59 +178,12 @@ class Tracker
         }
     }
 
-    /**
-     * Returns the Tracker_Visit object.
-     * This method can be overwritten to use a different Tracker_Visit object
-     *
-     * @throws Exception
-     * @return \Piwik\Tracker\Visit
-     */
-    private function getNewVisitObject()
-    {
-        $visit = null;
-
-        /**
-         * Triggered before a new **visit tracking object** is created. Subscribers to this
-         * event can force the use of a custom visit tracking object that extends from
-         * {@link Piwik\Tracker\VisitInterface}.
-         *
-         * @param \Piwik\Tracker\VisitInterface &$visit Initialized to null, but can be set to
-         *                                              a new visit object. If it isn't modified
-         *                                              Piwik uses the default class.
-         */
-        Piwik::postEvent('Tracker.makeNewVisitObject', array(&$visit));
-
-        if (is_null($visit)) {
-            $visit = new Visit();
-        } elseif (!($visit instanceof VisitInterface)) {
-            throw new Exception("The Visit object set in the plugin must implement VisitInterface");
-        }
-
-        return $visit;
-    }
-
-    private function loadTrackerPlugins(Request $request)
-    {
-        // Adding &dp=1 will disable the provider plugin, if token_auth is used (used to speed up bulk imports)
-        $disableProvider = $request->getParam('dp');
-        if (!empty($disableProvider)) {
-            \Piwik\Plugin\Manager::getInstance()->setTrackerPluginsNotToLoad(array('Provider'));
-        }
-
-        try {
-            $pluginsTracker = \Piwik\Plugin\Manager::getInstance()->loadTrackerPlugins();
-            Common::printDebug("Loading plugins: { " . implode(", ", $pluginsTracker) . " }");
-        } catch (Exception $e) {
-            Common::printDebug("ERROR: " . $e->getMessage());
-        }
-    }
-
     public static function setTestEnvironment($args = null, $requestMethod = null)
     {
         if (is_null($args)) {
             $requests = new Requests();
-            $postData = $requests->getRequestsArrayFromBulkRequest($requests->getRawBulkRequest());
-            $args     = $_GET + $postData;
+            $args     = $requests->getRequestsArrayFromBulkRequest($requests->getRawBulkRequest());
+            array_unshift($args, $_GET);
         }
 
         if (is_null($requestMethod) && array_key_exists('REQUEST_METHOD', $_SERVER)) {
@@ -281,19 +232,14 @@ class Tracker
     }
 
     /**
-     * @param $params
-     * @param $tokenAuth
+     * @param Request $request
      * @return array
      */
-    private function trackRequest($params, $tokenAuth)
+    public function trackRequest(Request $request)
     {
-        if ($params instanceof Request) {
-            $request = $params;
+        if ($request->isEmptyRequest()) {
+            Common::printDebug("The request is empty");
         } else {
-            $request = new Request($params, $tokenAuth);
-        }
-
-        if (!$this->isEmptyRequest($request)) {
             $this->loadTrackerPlugins($request);
 
             Common::printDebug("Current datetime: " . date("Y-m-d H:i:s", $request->getCurrentTimestamp()));
@@ -301,8 +247,6 @@ class Tracker
             $visit = $this->getNewVisitObject();
             $visit->setRequest($request);
             $visit->handle();
-        } else {
-            Common::printDebug("The request is invalid: empty request, or maybe tracking is disabled in the config.ini.php via record_statistics=0");
         }
 
         // increment successfully logged request count. make sure to do this after try-catch,
@@ -310,9 +254,53 @@ class Tracker
         ++$this->countOfLoggedRequests;
     }
 
-    private function isEmptyRequest(Request $request)
+    /**
+     * Returns the Tracker_Visit object.
+     * This method can be overwritten to use a different Tracker_Visit object
+     *
+     * @throws Exception
+     * @return \Piwik\Tracker\Visit
+     */
+    private function getNewVisitObject()
     {
-        return 0 === $request->getParamsCount();
+        $visit = null;
+
+        /**
+         * Triggered before a new **visit tracking object** is created. Subscribers to this
+         * event can force the use of a custom visit tracking object that extends from
+         * {@link Piwik\Tracker\VisitInterface}.
+         *
+         * @param \Piwik\Tracker\VisitInterface &$visit Initialized to null, but can be set to
+         *                                              a new visit object. If it isn't modified
+         *                                              Piwik uses the default class.
+         */
+        Piwik::postEvent('Tracker.makeNewVisitObject', array(&$visit));
+
+        if (is_null($visit)) {
+            $visit = new Visit();
+        } elseif (!($visit instanceof VisitInterface)) {
+            throw new Exception("The Visit object set in the plugin must implement VisitInterface");
+        }
+
+        return $visit;
+    }
+
+    private function loadTrackerPlugins(Request $request)
+    {
+        $pluginManager = PluginManager::getInstance();
+
+        // Adding &dp=1 will disable the provider plugin, this is an "unofficial" parameter used to speed up log importer
+        $disableProvider = $request->getParam('dp');
+        if (!empty($disableProvider)) {
+            $pluginManager->setTrackerPluginsNotToLoad(array('Provider'));
+        }
+
+        try {
+            $pluginsTracker = $pluginManager->loadTrackerPlugins();
+            Common::printDebug("Loading plugins: { " . implode(", ", $pluginsTracker) . " }");
+        } catch (Exception $e) {
+            Common::printDebug("ERROR: " . $e->getMessage());
+        }
     }
 
 }

@@ -12,32 +12,26 @@ use Piwik\Log;
 use Piwik\Tracker;
 use Piwik\Tracker\Response as TrackerResponse;
 
-/**
- * Class used by the logging script piwik.php called by the javascript tag.
- * Handles the visitor & his/her actions on the website, saves the data in the DB,
- * saves information in the cookie, etc.
- *
- * We try to include as little files as possible (no dependency on 3rd party modules).
- *
- */
 class Response extends TrackerResponse
 {
-
     public function init(Tracker $tracker)
     {
+        Log::debug('Queue init');
+
         $this->sendResponseToBrowserDirectly();
 
-        parent::init($tracker);
+        ob_start();
     }
 
     public function send()
     {
+        Log::debug('Queue end');
+
         return ob_get_clean();
     }
 
     public function outputException(Tracker $tracker, $e, $statusCode)
     {
-        Log::debug('Number of logged requests:' . $tracker->getCountOfLoggedRequests());
         Log::debug('Occurred exception: ' . $e->getMessage() . ' with status code ' . $statusCode);
     }
 

@@ -15,25 +15,9 @@ use Piwik\Timer;
 use Piwik\Tracker;
 use Piwik\Tracker\Db as TrackerDb;
 
-/**
- * Class used by the logging script piwik.php called by the javascript tag.
- * Handles the visitor & his/her actions on the website, saves the data in the DB,
- * saves information in the cookie, etc.
- *
- * We try to include as little files as possible (no dependency on 3rd party modules).
- *
- */
 class Response
 {
-    protected function outputAccessControlHeaders()
-    {
-        $requestMethod = isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : 'GET';
-        if ($requestMethod !== 'GET') {
-            $origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '*';
-            Common::sendHeader('Access-Control-Allow-Origin: ' . $origin);
-            Common::sendHeader('Access-Control-Allow-Credentials: true');
-        }
-    }
+    private $timer;
 
     public function init(Tracker $tracker)
     {
@@ -48,11 +32,6 @@ class Response
     public function send()
     {
         ob_end_flush();
-    }
-
-    private function getOutputBuffer()
-    {
-        return ob_get_contents();
     }
 
     /**
@@ -110,6 +89,21 @@ class Response
         }
     }
 
+    protected function outputAccessControlHeaders()
+    {
+        $requestMethod = isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : 'GET';
+        if ($requestMethod !== 'GET') {
+            $origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '*';
+            Common::sendHeader('Access-Control-Allow-Origin: ' . $origin);
+            Common::sendHeader('Access-Control-Allow-Credentials: true');
+        }
+    }
+
+    private function getOutputBuffer()
+    {
+        return ob_get_contents();
+    }
+
     private function sendResponse(Tracker $tracker)
     {
         if ($tracker->isDebugModeEnabled()) {
@@ -117,7 +111,7 @@ class Response
         }
 
         if (strlen($this->getOutputBuffer()) > 0) {
-            // If there was an error during tracker, return so errors can be flushed
+            // If there was an error during tracker, return so errors can be flushed TODO???
             return;
         }
 
