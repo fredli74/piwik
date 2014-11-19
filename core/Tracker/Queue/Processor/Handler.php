@@ -20,6 +20,15 @@ class Handler extends Tracker\BulkTracking\Handler
         $this->setResponse(new Queue\Response());
     }
 
+    public function process(Tracker $tracker, Tracker\Requests $requests)
+    {
+        foreach ($requests->getRequests() as $request) {
+            $request->setUserIsAuthenticated();
+
+            $tracker->trackRequest($request, false);
+        }
+    }
+
     public function onException(Tracker $tracker, Exception $e)
     {
         $this->rollbackTransaction();

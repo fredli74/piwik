@@ -116,9 +116,7 @@ try {
         }
     }
 
-    $handler->init($tracker, $requests);
     $tracker->main($handler, $requests);
-    $handler->finish($tracker, $requests);
 
 } catch (Exception $e) {
     echo "Error:" . $e->getMessage();

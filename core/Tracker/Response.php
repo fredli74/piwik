@@ -107,7 +107,7 @@ class Response
     private function outputApiResponse(Tracker $tracker)
     {
         if ($tracker->isDebugModeEnabled()) {
-            return;
+        //    return;
         }
 
         if (strlen($this->getOutputBuffer()) > 0) {

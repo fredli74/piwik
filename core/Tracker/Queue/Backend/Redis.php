@@ -18,35 +18,49 @@ class Redis
      * @var \Redis
      */
     private $redis;
+    private static $testMode = false;
 
     public function checkIsInstalled()
     {
         if (!class_exists('\Redis', false)) {
-            throw new \Exception('Redis is not installed. Please check out https://github.com/nrk/predis');
+            throw new \Exception('Redis is not installed. Please check out https://github.com/nicolasff/phpredis');
         }
     }
 
     public function appendValuesToList($key, $values)
     {
-        array_unshift($values, $key);
-
         $redis = $this->getRedis();
 
-        call_user_func_array(array($redis, 'rPush'), $values);
+        foreach ($values as $value) {
+            $redis->rPush($key, $value);
+        }
+
+        // usually we would simply do call_user_func_array(array($redis, 'rPush'), $values); as rpush supports multiple values
+        // at once but it seems to be not implemented yet see https://github.com/nicolasff/phpredis/issues/366
+        // doing it in one command should be much faster as it requires less tcp communication. There are only multiple
+        // values when doing bulk requests which should not be very often so it is ok!
     }
 
     public function getFirstXValuesFromList($key, $numValues)
     {
+        if ($numValues <= 0) {
+            return array();
+        }
+
         $redis  = $this->getRedis();
-        $values = $redis->lRange($key, 0, $numValues);
+        $values = $redis->lRange($key, 0, $numValues - 1);
 
         return $values;
     }
 
     public function removeFirstXValuesFromList($key, $numValues)
     {
+        if ($numValues <= 0) {
+            return;
+        }
+
         $redis = $this->getRedis();
-        $redis->ltrim($key, $numValues, -1);
+        return $redis->ltrim($key, $numValues, -1);
     }
 
     public function getNumValuesInList($key)
@@ -68,14 +82,19 @@ class Redis
     {
         $redis = $this->getRedis();
 
-        return $redis->delete($key) > 0;
+        return $redis->del($key) > 0;
     }
 
     public function expire($key, $ttlInSeconds)
     {
         $redis = $this->getRedis();
 
-        return $redis->expire($key, $ttlInSeconds);
+        return (bool) $redis->expire($key, $ttlInSeconds);
+    }
+
+    public function flushAll()
+    {
+        $this->getRedis()->flushAll();
     }
 
     private function getRedis()
@@ -85,6 +104,10 @@ class Redis
 
             $this->redis = new \Redis();
             $this->redis->connect($config['host'], $config['port'], $config['timeout']);
+
+            if (self::$testMode) {
+                $this->redis->select(2);
+            }
         }
 
         return $this->redis;
@@ -93,5 +116,17 @@ class Redis
     private function getConfig()
     {
         return Config::getInstance()->Redis;
+    }
+
+    public static function enableTestMode()
+    {
+        self::$testMode = true;
+    }
+
+    public static function clearDatabase()
+    {
+        self::enableTestMode(); // prevent deletion of production db accidentally
+        $redis = new Redis();
+        $redis->flushAll();
     }
 }

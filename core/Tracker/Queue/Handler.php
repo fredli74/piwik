@@ -30,7 +30,7 @@ class Handler extends Tracker\Handler
 
     public function process(Tracker $tracker, Tracker\Requests $requests)
     {
-        $this->queue->popRequests($requests->getRequests(), $_SERVER);
+        $this->queue->addRequests($requests->getRequests(), $_SERVER);
 
         Common::printDebug('Added requests to queue');
 

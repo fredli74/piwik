@@ -12,14 +12,13 @@ use Exception;
 use Piwik\Plugins\PrivacyManager\Config as PrivacyManagerConfig;
 use Piwik\Tracker\Db as TrackerDb;
 use Piwik\Tracker\Db\DbException;
+use Piwik\Tracker\Handler;
 use Piwik\Tracker\Request;
 use Piwik\Tracker\Requests;
 use Piwik\Tracker\TrackerConfig;
 use Piwik\Tracker\Visit;
 use Piwik\Tracker\VisitInterface;
 use Piwik\Plugin\Manager as PluginManager;
-use Piwik\Error;
-use Piwik\ExceptionHandler;
 
 /**
  * Class used by the logging script piwik.php called by the javascript tag.
@@ -88,13 +87,14 @@ class Tracker
         return $this->isInstalled;
     }
 
-    /**
-     * Main - tracks the visit/action
-     *
-     * @param Tracker\Handler  $handler
-     * @param Tracker\Requests $requests
-     */
-    public function main($handler, $requests)
+    public function main(Handler $handler, Requests $requests)
+    {
+        $handler->init($this, $requests);
+        $this->track($handler, $requests);
+        $handler->finish($this, $requests);
+    }
+
+    public function track(Handler $handler, Requests $requests)
     {
         if (!$this->shouldRecordStatistics()) {
             return;
@@ -179,6 +179,7 @@ class Tracker
 
     public static function setTestEnvironment($args = null, $requestMethod = null)
     {
+        TrackerConfig::setConfigValue('debug', 1);
         if (is_null($args)) {
             $requests = new Requests();
             $args     = $requests->getRequestsArrayFromBulkRequest($requests->getRawBulkRequest());

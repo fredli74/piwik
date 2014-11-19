@@ -98,9 +98,14 @@ class Request
             }
             Common::printDebug("token_auth is authenticated!");
         } else {
-            $this->isAuthenticated = true;
+            $this->setUserIsAuthenticated();
             Common::printDebug("token_auth authentication not required");
         }
+    }
+
+    public function setUserIsAuthenticated()
+    {
+        $this->isAuthenticated = true;
     }
 
     public static function authenticateSuperUserOrAdmin($tokenAuth, $idSite)
@@ -642,7 +647,7 @@ class Request
      * @return mixed|string
      * @throws Exception
      */
-    private function getIpString()
+    public function getIpString()
     {
         $cip = $this->getParam('cip');
 

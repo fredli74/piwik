@@ -19,14 +19,19 @@ class Queue
      */
     private $backend;
     private $key = 'trackingQueueV1';
-    private $numRequestsToProcessAtSameTime = 3;
+    private $numRequestsToProcessAtSameTime = 50;
 
     public function __construct()
     {
         $this->backend = new Redis();
     }
 
-    public function popRequests($requests, $server)
+    public function setNumberOfRequestsToProcessAtSameTime($numRequests)
+    {
+        $this->numRequestsToProcessAtSameTime = $numRequests;
+    }
+
+    public function addRequests($requests, $server)
     {
         if (empty($requests)) {
             return;
@@ -73,9 +78,9 @@ class Queue
         $enabled = TrackerConfig::getConfigValue('queue_enabled');
 
         if ($enabled) {
-            $this->backend->checkIsInstalled();
+            $this->backend->checkIsInstalled(); // todo this should not really be done here
         }
 
-        return $enabled;
+        return (bool) $enabled;
     }
 }

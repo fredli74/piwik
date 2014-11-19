@@ -48,10 +48,12 @@ class Processor
 
             $queuedRequests = $this->queue->getRequestsToProcess();
             $requests->setRequests($queuedRequests);
+
+
             //$requests->setTokenAuth();
             //$requests->setServer();
 
-            $tracker->main($handler, $requests);
+            $tracker->track($handler, $requests);
 
             $this->queue->markRequestsAsProcessed();
         }
