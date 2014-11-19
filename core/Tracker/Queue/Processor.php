@@ -49,14 +49,16 @@ class Processor
             $queuedRequests = $this->queue->getRequestsToProcess();
             $requests->setRequests($queuedRequests);
 
-
-            //$requests->setTokenAuth();
-            //$requests->setServer();
-
             $tracker->track($handler, $requests);
 
-            $this->queue->markRequestsAsProcessed();
+            if ($tracker->hasLoggedRequests()) {
+                $this->queue->markRequestsAsProcessed();
+            } else {
+                break;
+            }
         }
+
+        return $tracker;
     }
 
     public function acquireLock()

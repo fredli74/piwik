@@ -37,8 +37,8 @@ class Response
     /**
      * Echos an error message & other information, then exits.
      *
+     * @param Tracker $tracker
      * @param Exception $e
-     * @param bool $authenticated
      * @param int  $statusCode eg 500
      */
     public function outputException(Tracker $tracker, $e, $statusCode)
@@ -59,15 +59,12 @@ class Response
         }
     }
 
-    /**
-     * Cleanup
-     */
     public function outputResponse(Tracker $tracker)
     {
         if (!$tracker->shouldRecordStatistics()) {
             $this->outputApiResponse($tracker);
             Common::printDebug("Logging disabled, display transparent logo");
-        } elseif (0 === $tracker->getCountOfLoggedRequests()) {
+        } elseif (!$tracker->hasLoggedRequests()) {
             Common::printDebug("Empty request => Piwik page");
             echo "<a href='/'>Piwik</a> is a free/libre web <a href='http://piwik.org'>analytics</a> that lets you keep control of your data.";
         } else {
@@ -104,7 +101,7 @@ class Response
         return ob_get_contents();
     }
 
-    private function outputApiResponse(Tracker $tracker)
+    protected function outputApiResponse(Tracker $tracker)
     {
         if ($tracker->isDebugModeEnabled()) {
             return;

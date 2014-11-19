@@ -10,6 +10,7 @@ namespace Piwik;
 
 use Exception;
 use Piwik\Plugins\PrivacyManager\Config as PrivacyManagerConfig;
+use Piwik\Plugins\SitesManager\SiteUrls;
 use Piwik\Tracker\Db as TrackerDb;
 use Piwik\Tracker\Db\DbException;
 use Piwik\Tracker\Handler;
@@ -42,11 +43,6 @@ class Tracker
 
     private $countOfLoggedRequests = 0;
     private $isInstalled = null;
-
-    public function isEnabled()
-    {
-        return (!defined('PIWIK_ENABLE_TRACKING') || PIWIK_ENABLE_TRACKING);
-    }
 
     public function isDebugModeEnabled()
     {
@@ -141,6 +137,16 @@ class Tracker
     public function getCountOfLoggedRequests()
     {
         return $this->countOfLoggedRequests;
+    }
+
+    public function setCountOfLoggedRequests($numLoggedRequests)
+    {
+        $this->countOfLoggedRequests = $numLoggedRequests;
+    }
+
+    public function hasLoggedRequests()
+    {
+        return 0 !== $this->countOfLoggedRequests;
     }
 
     /**

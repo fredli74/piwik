@@ -39,13 +39,6 @@ class Handler
     {
         $tracker->init();
 
-        // maybe belongs to response?
-        $redirectUrl = $requests->shouldPerformRedirectToUrl();
-
-        if (!empty($redirectUrl)) {
-            Url::redirectToUrlNoExit($redirectUrl);
-        }
-
         $this->response->init($tracker);
     }
 
@@ -91,6 +84,21 @@ class Handler
         Piwik::postEvent('Tracker.end');
 
         $tracker->disconnectDatabase();
+
+        $this->sendResponse($tracker, $requests);
+    }
+
+    /**
+     * @param Tracker $tracker
+     * @param Tracker\Requests $requests
+     */
+    protected function sendResponse(Tracker $tracker, Tracker\Requests $requests)
+    {
+        $redirectUrl = $requests->shouldPerformRedirectToUrl();
+
+        if (!empty($redirectUrl)) {
+            Url::redirectToUrl($redirectUrl);
+        }
 
         $this->response->outputResponse($tracker);
         $this->response->send();

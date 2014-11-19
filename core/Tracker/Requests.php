@@ -63,9 +63,18 @@ class Requests
 
     public function isUsingBulkRequest()
     {
+        return $this->getNumberOfRequests() > 1;
+    }
+
+    public function getNumberOfRequests()
+    {
         $requests = $this->getRequests();
 
-        return is_array($requests) && count($requests) > 1;
+        if (is_array($requests)) {
+            return count($requests);
+        }
+
+        return 0;
     }
 
     public function getRequests()

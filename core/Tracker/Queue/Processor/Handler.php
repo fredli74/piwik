@@ -17,16 +17,7 @@ class Handler extends Tracker\BulkTracking\Handler
 {
     public function __construct()
     {
-        $this->setResponse(new Queue\Response());
-    }
-
-    public function process(Tracker $tracker, Tracker\Requests $requests)
-    {
-        foreach ($requests->getRequests() as $request) {
-            $request->setUserIsAuthenticated();
-
-            $tracker->trackRequest($request, false);
-        }
+        $this->setResponse(new Response());
     }
 
     public function onException(Tracker $tracker, Exception $e)
@@ -34,6 +25,7 @@ class Handler extends Tracker\BulkTracking\Handler
         $this->rollbackTransaction();
         $this->beginTransaction();
         // we do not exit on any failure
+
     }
 
 }

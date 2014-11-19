@@ -5,9 +5,6 @@ use Piwik\Tracker;
 use Piwik\Tracker\Cache;
 
 $GLOBALS['PIWIK_TRACKER_DEBUG'] = false;
-if (!defined('PIWIK_ENABLE_TRACKING')) {
-    define('PIWIK_ENABLE_TRACKING', true);
-}
 
 require_once PIWIK_INCLUDE_PATH . '/core/Tracker.php';
 require_once PIWIK_INCLUDE_PATH . '/core/Tracker/Db.php';

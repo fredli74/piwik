@@ -466,7 +466,7 @@ class Url
         self::redirectToUrl(self::getCurrentUrlWithoutQueryString());
     }
 
-    public static function redirectToUrlNoExit($url)
+    private static function redirectToUrlNoExit($url)
     {
         if (UrlHelper::isLookLikeUrl($url)
             || strpos($url, 'index.php') === 0

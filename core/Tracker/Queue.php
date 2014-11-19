@@ -31,19 +31,25 @@ class Queue
         $this->numRequestsToProcessAtSameTime = $numRequests;
     }
 
-    public function addRequests($requests, $server)
+    public function addRequests($requests)
     {
         if (empty($requests)) {
             return;
         }
 
         $values = array();
+        /** @var Request $request */
         foreach ($requests as $request) {
-            if ($request instanceof Request) {
-                $request = $request->getParams();
-            }
+            // $request->setUserIsAuthenticated();
 
-            $values[] = json_encode($request);
+            $params = $request->getParams();
+            /*
+            $params['cdt']    = $request->getCurrentTimestamp();
+            $params['idsite'] = $request->getIdSite();
+            $params['ua']     = $request->getUserAgent();
+            $params['cip']    = $request->getIpString();
+*/
+            $values[] = json_encode($params);
         }
 
         $this->backend->appendValuesToList($this->key, $values);
@@ -62,7 +68,10 @@ class Queue
 
         $requests = array();
         foreach ($values as $value) {
-            $requests[] = json_decode($value, true);
+            $params  = json_decode($value, true);
+            $request = new Request($params);
+         //   $request->setUserIsAuthenticated();
+            $requests[] = $request;
         }
 
         return $requests;

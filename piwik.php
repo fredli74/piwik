@@ -8,16 +8,12 @@
  * @package Piwik
  */
 
-use Piwik\Url;
 use Piwik\Tracker\Requests;
-use Piwik\Tracker;
 use Piwik\Tracker\Queue;
-use Piwik\Tracker\Queue\Processor as QueueProcessor;
+use Piwik\Tracker;
 
 // Note: if you wish to debug the Tracking API please see this documentation:
 // http://developer.piwik.org/api-reference/tracking-api#debugging-the-tracker
-
-define('PIWIK_ENABLE_TRACKING', true);
 
 if (!defined('PIWIK_DOCUMENT_ROOT')) {
     define('PIWIK_DOCUMENT_ROOT', dirname(__FILE__) == '/' ? '' : dirname(__FILE__));
@@ -89,18 +85,13 @@ require_once PIWIK_INCLUDE_PATH . '/core/Cookie.php';
 session_cache_limiter('nocache');
 @date_default_timezone_set('UTC');
 
-$tracker = new Tracker();
-
-if (!$tracker->isEnabled()) {
-    exit;
-}
+$tracker  = new Tracker();
+$requests = new Requests();
+$queue    = new Queue();
 
 ob_start();
 
 try {
-
-    $requests = new Requests();
-    $queue    = new Queue();
 
     if ($queue->isEnabled()) {
 

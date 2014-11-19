@@ -13,37 +13,37 @@ use Piwik\Common;
 use Piwik\Tracker;
 use Piwik\Tracker\Queue;
 use Exception;
+use Piwik\Url;
 
 class Handler extends Tracker\Handler
 {
-    /**
-     * @var Queue
-     */
-    private $queue;
-
     public function __construct()
     {
         $this->setResponse(new Response());
-
-        $this->queue = new Queue;
     }
 
     public function process(Tracker $tracker, Tracker\Requests $requests)
     {
-        $this->queue->addRequests($requests->getRequests(), $_SERVER);
+        $queue = new Queue();
+        $queue->addRequests($requests->getRequests());
+        $tracker->setCountOfLoggedRequests($requests->getNumberOfRequests());
 
         Common::printDebug('Added requests to queue');
 
-        $this->processQueueIfPossible();
-
-        return false;
+        $this->sendResponse($tracker, $requests);
+        $this->processQueueIfNeeded($queue);
     }
 
-    private function processQueueIfPossible()
+    private function processQueueIfNeeded(Queue $queue)
     {
-        $processor = new Processor($this->queue);
+        if ($queue->shouldProcess()) {
+            $this->processIfNotLocked(new Processor($queue));
+        }
+    }
 
-        if ($this->queue->shouldProcess() && $processor->acquireLock()) {
+    private function processIfNotLocked(Processor $processor)
+    {
+        if ($processor->acquireLock()) {
 
             Common::printDebug('We are going to process the queue');
 
@@ -57,5 +57,6 @@ class Handler extends Tracker\Handler
             $processor->unlock();
         }
     }
+
 
 }
