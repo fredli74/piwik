@@ -179,7 +179,6 @@ class Tracker
 
     public static function setTestEnvironment($args = null, $requestMethod = null)
     {
-        TrackerConfig::setConfigValue('debug', 1);
         if (is_null($args)) {
             $requests = new Requests();
             $args     = $requests->getRequestsArrayFromBulkRequest($requests->getRawBulkRequest());
