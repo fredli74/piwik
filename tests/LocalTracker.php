@@ -72,7 +72,7 @@ class Piwik_LocalTracker extends PiwikTracker
         // do tracking and capture output
         ob_start();
 
-
+        $localTracker = new Tracker();
         $request = new Tracker\Requests();
         $request->setRequests($requests);
 
@@ -82,7 +82,6 @@ class Piwik_LocalTracker extends PiwikTracker
             $handler = new Tracker\Handler();
         }
 
-        $localTracker = new Tracker();
         $localTracker->main($handler, $request);
 
         $output = ob_get_contents();
