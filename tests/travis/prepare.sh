@@ -49,3 +49,4 @@ wget https://github.com/nicolasff/phpredis/archive/2.2.5.zip -O php-redis.zip &&
 cd phpredis-2.2.5/ && phpize && ./configure && make && make install
 cd ..
 rm -rf phpredis-2.2.5
+sudo echo "extension=redis.so" > /etc/php5/cli/conf.d/redis.ini
