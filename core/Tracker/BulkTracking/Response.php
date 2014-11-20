@@ -12,14 +12,6 @@ use Exception;
 use Piwik\Common;
 use Piwik\Tracker;
 
-/**
- * Class used by the logging script piwik.php called by the javascript tag.
- * Handles the visitor & his/her actions on the website, saves the data in the DB,
- * saves information in the cookie, etc.
- *
- * We try to include as little files as possible (no dependency on 3rd party modules).
- *
- */
 class Response extends Tracker\Response
 {
     /**

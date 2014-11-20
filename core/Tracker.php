@@ -10,7 +10,6 @@ namespace Piwik;
 
 use Exception;
 use Piwik\Plugins\PrivacyManager\Config as PrivacyManagerConfig;
-use Piwik\Plugins\SitesManager\SiteUrls;
 use Piwik\Tracker\Db as TrackerDb;
 use Piwik\Tracker\Db\DbException;
 use Piwik\Tracker\Handler;
@@ -93,6 +92,13 @@ class Tracker
     public function track(Handler $handler, Requests $requests)
     {
         if (!$this->shouldRecordStatistics()) {
+            return;
+        }
+
+        try {
+            $requests->initRequestsAndTokenAuth(); // eg Bulk Tracking could throw exception in case not authenticated
+        } catch (Exception $e) {
+            $handler->onException($this, $e);
             return;
         }
 
@@ -186,7 +192,7 @@ class Tracker
     public static function setTestEnvironment($args = null, $requestMethod = null)
     {
         if (is_null($args)) {
-            $requests = new Requests();
+            $requests = new Tracker\BulkTracking\Requests();
             $args     = $requests->getRequestsArrayFromBulkRequest($requests->getRawBulkRequest());
             array_unshift($args, $_GET);
         }

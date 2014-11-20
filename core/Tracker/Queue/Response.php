@@ -30,6 +30,10 @@ class Response extends TrackerResponse
 
     private function sendResponseToBrowserDirectly()
     {
+        if (ob_get_level() === 0) {
+            return;
+        }
+
         while (ob_get_level() > 1) {
             ob_end_flush();
         }
@@ -38,7 +42,6 @@ class Response extends TrackerResponse
         Common::sendHeader("Content-Encoding: none\r\n", true);
         Common::sendHeader('Content-Length: ' . ob_get_length(), true);
         ob_end_flush();
-        ob_flush();
         flush();
     }
 

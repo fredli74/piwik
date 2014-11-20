@@ -10,7 +10,10 @@
 
 use Piwik\Tracker\Requests;
 use Piwik\Tracker\Queue;
+use Piwik\Tracker\Queue\Handler as QueueHandler;
 use Piwik\Tracker;
+use Piwik\Tracker\BulkTracking\Handler as BulkTrackingHandler;
+use Piwik\Tracker\Handler as DefaultHandler;
 
 // Note: if you wish to debug the Tracking API please see this documentation:
 // http://developer.piwik.org/api-reference/tracking-api#debugging-the-tracker
@@ -84,6 +87,7 @@ require_once PIWIK_INCLUDE_PATH . '/core/Cookie.php';
 
 session_cache_limiter('nocache');
 @date_default_timezone_set('UTC');
+set_time_limit(0);
 
 $tracker  = new Tracker();
 $requests = new Requests();
@@ -94,17 +98,11 @@ ob_start();
 try {
 
     if ($queue->isEnabled()) {
-
-        $handler = new Queue\Handler();
-        set_time_limit(0);
-
+        $handler = new QueueHandler();
+    } elseif ($requests->isUsingBulkRequest()) {
+        $handler = new BulkTrackingHandler();
     } else {
-
-        if ($requests->isUsingBulkRequest()) {
-            $handler = new Tracker\BulkTracking\Handler();
-        } else {
-            $handler = new Tracker\Handler();
-        }
+        $handler = new DefaultHandler();
     }
 
     $tracker->main($handler, $requests);

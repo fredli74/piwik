@@ -66,6 +66,11 @@ class Request
         }
     }
 
+    public function getTokenAuth()
+    {
+        return $this->tokenAuth;
+    }
+
     /**
      * @return bool
      */
@@ -98,14 +103,9 @@ class Request
             }
             Common::printDebug("token_auth is authenticated!");
         } else {
-            $this->setUserIsAuthenticated();
+            $this->isAuthenticated = true;
             Common::printDebug("token_auth authentication not required");
         }
-    }
-
-    public function setUserIsAuthenticated()
-    {
-        $this->isAuthenticated = true;
     }
 
     public static function authenticateSuperUserOrAdmin($tokenAuth, $idSite)

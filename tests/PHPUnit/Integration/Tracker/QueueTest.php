@@ -76,7 +76,7 @@ class QueueTest extends IntegrationTestCase
         $this->assertEquals(array(), $this->buildManyRequestsContainingRequests(0));
         $this->assertEquals(array($this->buildNumRequests(1)), $this->buildManyRequestsContainingRequests(1));
 
-        $this->assertEquals(array(
+        $this->assertManyRequestsAreEqual(array(
             $this->buildNumRequests(1),
             $this->buildNumRequests(1, 2),
             $this->buildNumRequests(1, 3),
@@ -110,7 +110,7 @@ class QueueTest extends IntegrationTestCase
     {
         $this->queue->addRequest($this->buildNumRequests(1));
 
-        $this->assertEquals(array($this->buildNumRequests(1)), $this->queue->getRequestsToProcess());
+        $this->assertManyRequestsAreEqual(array($this->buildNumRequests(1)), $this->queue->getRequestsToProcess());
     }
 
     public function test_addRequest_ShouldBeAble_ToAddARequestWithManyRequests()
@@ -122,7 +122,7 @@ class QueueTest extends IntegrationTestCase
             $this->buildNumRequests(2),
             $this->buildNumRequests(1)
         );
-        $this->assertEquals($expected, $this->queue->getRequestsToProcess());
+        $this->assertManyRequestsAreEqual($expected, $this->queue->getRequestsToProcess());
     }
 
     public function test_shouldProcess_ShouldReturnValue_WhenQueueIsEmptyOrHasTooLessRequests()
@@ -180,7 +180,7 @@ class QueueTest extends IntegrationTestCase
         $requests = $this->queue->getRequestsToProcess();
         $expected = array($this->buildNumRequests(2));
 
-        $this->assertEquals($expected, $requests);
+        $this->assertManyRequestsAreEqual($expected, $requests);
     }
 
     public function test_getRequestsToProcess_shouldReturnOnlyTheRequestsThatActuallyNeedToBeProcessed_IfQueueContainsMoreEntries()
@@ -190,7 +190,7 @@ class QueueTest extends IntegrationTestCase
         $requests = $this->queue->getRequestsToProcess();
         $expected = $this->buildManyRequestsContainingRequests(3);
 
-        $this->assertEquals($expected, $requests);
+        $this->assertManyRequestsAreEqual($expected, $requests);
     }
 
     public function test_getRequestsToProcess_shouldNotRemoveAnyEntriesFromTheQueue()
@@ -199,9 +199,9 @@ class QueueTest extends IntegrationTestCase
 
         $expected = $this->buildManyRequestsContainingRequests(3);
 
-        $this->assertEquals($expected, $this->queue->getRequestsToProcess());
-        $this->assertEquals($expected, $this->queue->getRequestsToProcess());
-        $this->assertEquals($expected, $this->queue->getRequestsToProcess());
+        $this->assertManyRequestsAreEqual($expected, $this->queue->getRequestsToProcess());
+        $this->assertManyRequestsAreEqual($expected, $this->queue->getRequestsToProcess());
+        $this->assertManyRequestsAreEqual($expected, $this->queue->getRequestsToProcess());
     }
 
     public function test_markRequestsAsProcessed_ShouldNotFail_IfQueueIsEmpty()
@@ -220,7 +220,7 @@ class QueueTest extends IntegrationTestCase
             $this->buildNumRequests(1, 3)
         );
 
-        $this->assertEquals($expected, $this->queue->getRequestsToProcess());
+        $this->assertManyRequestsAreEqual($expected, $this->queue->getRequestsToProcess());
 
         $this->queue->markRequestsAsProcessed();
 
@@ -229,10 +229,43 @@ class QueueTest extends IntegrationTestCase
             $this->buildNumRequests(1, 5)
         );
 
-        $this->assertEquals($expected, $this->queue->getRequestsToProcess());
+        $this->assertManyRequestsAreEqual($expected, $this->queue->getRequestsToProcess());
 
         $this->queue->markRequestsAsProcessed();
         $this->assertEquals(array(), $this->queue->getRequestsToProcess());
+    }
+
+    /**
+     * @param Requests[] $expected
+     * @param Requests[] $actual
+     */
+    private function assertManyRequestsAreEqual(array $expected, array $actual)
+    {
+        $this->assertSameSize($expected, $actual);
+
+        foreach ($expected as $index => $item) {
+            $this->assertRequestsAreEqual($item, $actual[$index]);
+        }
+    }
+
+    private function assertRequestsAreEqual(Requests $expected, Requests $actual)
+    {
+        $eState = $expected->getState();
+        $aState = $expected->getState();
+
+        $eTime = $eState['time'];
+        $aTime = $aState['time'];
+
+        unset($eState['time']);
+        unset($aState['time']);
+
+        if (array_key_exists('REQUEST_TIME_FLOAT', $_SERVER)) {
+            unset($eState['REQUEST_TIME_FLOAT']);
+            unset($aState['REQUEST_TIME_FLOAT']);
+        }
+
+        $this->assertTrue(($aTime - 5 < $eTime) && ($aTime + 5 > $eTime), "$eTime is not nearly $aTime");
+        $this->assertEquals($eState, $aState);
     }
 
     private function buildNumRequests($numRequests, $idToUse = null)
