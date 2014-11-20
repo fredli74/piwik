@@ -31,28 +31,16 @@ class Queue
         $this->numRequestsToProcessAtSameTime = $numRequests;
     }
 
-    public function addRequests($requests)
+    public function addRequest(Requests $requests)
     {
-        if (empty($requests)) {
+        if (!$requests->hasRequests()) {
             return;
         }
 
-        $values = array();
-        /** @var Request $request */
-        foreach ($requests as $request) {
-            // $request->setUserIsAuthenticated();
+        $value = $requests->getState();
+        $value = json_encode($value);
 
-            $params = $request->getParams();
-            /*
-            $params['cdt']    = $request->getCurrentTimestamp();
-            $params['idsite'] = $request->getIdSite();
-            $params['ua']     = $request->getUserAgent();
-            $params['cip']    = $request->getIpString();
-*/
-            $values[] = json_encode($params);
-        }
-
-        $this->backend->appendValuesToList($this->key, $values);
+        $this->backend->appendValuesToList($this->key, array($value));
     }
 
     public function shouldProcess()
@@ -62,15 +50,19 @@ class Queue
         return $numRequests >= $this->numRequestsToProcessAtSameTime;
     }
 
+    /**
+     * @return Requests[]
+     */
     public function getRequestsToProcess()
     {
         $values = $this->backend->getFirstXValuesFromList($this->key, $this->numRequestsToProcessAtSameTime);
 
         $requests = array();
         foreach ($values as $value) {
-            $params  = json_decode($value, true);
-            $request = new Request($params);
-         //   $request->setUserIsAuthenticated();
+            $params = json_decode($value, true);
+
+            $request = new Requests();
+            $request->restoreState($params);
             $requests[] = $request;
         }
 

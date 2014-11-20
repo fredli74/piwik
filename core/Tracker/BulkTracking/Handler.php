@@ -42,7 +42,7 @@ class Handler extends Tracker\Handler
         parent::onException($tracker, $e);
     }
 
-    protected function beginTransaction()
+    public function beginTransaction()
     {
         if (empty($this->transactionId)) {
             $this->transactionId = $this->getDb()->beginTransaction();

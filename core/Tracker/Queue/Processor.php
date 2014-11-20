@@ -10,6 +10,8 @@
 namespace Piwik\Tracker\Queue;
 
 use Piwik\Tracker;
+use Piwik\Tracker\Handler;
+use Piwik\Tracker\Requests;
 use Piwik\Tracker\Queue;
 use Piwik\Tracker\Queue\Backend\Redis;
 
@@ -39,26 +41,70 @@ class Processor
 
     public function process()
     {
-        $tracker  = new Tracker();
-        $handler  = new Queue\Processor\Handler();
-        $requests = new Tracker\Requests();
+        $tracker = new Tracker();
+
+        if (!$tracker->shouldRecordStatistics()) {
+            return $tracker;
+        }
+
+        $requests = new Requests();
+        $requests->rememberEnvironment();
 
         while ($this->queue->shouldProcess()) {
-            $this->expireLock($ttlInSeconds = 120);
+            $queuedRequests    = $this->queue->getRequestsToProcess();
+            $processedRequests = $this->processRequests($tracker, $queuedRequests);
 
-            $queuedRequests = $this->queue->getRequestsToProcess();
-            $requests->setRequests($queuedRequests);
+            if (count($queuedRequests) > count($processedRequests)) {
+                // try once more without the failed ones
+                $this->processRequests($tracker, $processedRequests);
+            }
 
-            $tracker->track($handler, $requests);
+            $this->queue->markRequestsAsProcessed();
+        }
 
-            if ($tracker->hasLoggedRequests()) {
-                $this->queue->markRequestsAsProcessed();
-            } else {
-                break;
+        $requests->restoreEnvironment();
+
+        return $tracker;
+    }
+
+    /**
+     * @param Tracker $tracker
+     * @param Requests[] $queuedRequests
+     * @return mixed
+     */
+    private function processRequests(Tracker $tracker, $queuedRequests)
+    {
+        $this->expireLock($ttlInSeconds = 180); // todo this processor does not really now it was locked by another class so should not really expire it.
+
+        $processedRequests = array();
+
+        $transaction = $this->getDb()->beginTransaction();
+
+        foreach ($queuedRequests as $index => $requests) {
+            $requests->restoreEnvironment();
+
+            try {
+                foreach ($requests->getRequests() as $request) {
+                    $tracker->trackRequest($request);
+                }
+                $processedRequests[] = $requests;
+            } catch (\Exception $e) {
+                // TODO
             }
         }
 
-        return $tracker;
+        if (count($processedRequests) < count($queuedRequests)) {
+            $this->getDb()->rollBack($transaction);
+        } else {
+            $this->getDb()->commit($transaction);
+        }
+
+        return $processedRequests;
+    }
+
+    private function getDb()
+    {
+        return Tracker::getDatabase();
     }
 
     public function acquireLock()

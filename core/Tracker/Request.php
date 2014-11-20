@@ -335,6 +335,11 @@ class Request
         return $this->timestamp;
     }
 
+    public function setCurrentTimestamp($timestamp)
+    {
+        $this->timestamp = $timestamp;
+    }
+
     protected function getCustomTimestamp()
     {
         $cdt = $this->getParam('cdt');

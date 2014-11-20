@@ -37,8 +37,8 @@ class Redis
 
         // usually we would simply do call_user_func_array(array($redis, 'rPush'), $values); as rpush supports multiple values
         // at once but it seems to be not implemented yet see https://github.com/nicolasff/phpredis/issues/366
-        // doing it in one command should be much faster as it requires less tcp communication. There are only multiple
-        // values when doing bulk requests which should not be very often so it is ok!
+        // doing it in one command should be much faster as it requires less tcp communication. Anyway, we currently do
+        // not write multiple values at once ... so it is ok!
     }
 
     public function getFirstXValuesFromList($key, $numValues)

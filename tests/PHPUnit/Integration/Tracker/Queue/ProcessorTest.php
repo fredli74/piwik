@@ -9,7 +9,7 @@
 namespace Piwik\Tests\Integration\Tracker;
 
 use Piwik\Tests\Framework\Fixture;
-use Piwik\Tracker\Request;
+use Piwik\Tracker\Requests;
 use Piwik\Tracker\TrackerConfig;
 use Piwik\Tracker;
 use Piwik\Tracker\Queue\Backend\Redis;
@@ -75,7 +75,7 @@ class ProcessorTest extends IntegrationTestCase
 
     public function test_proccess_shouldDoNothing_IfLessThanRequiredRequestsAreInQueue()
     {
-        $this->queue->addRequests($this->buildNumRequests(2));
+        $this->addNumRequestsToQueue(2);
 
         $tracker = $this->processor->process();
 
@@ -85,7 +85,7 @@ class ProcessorTest extends IntegrationTestCase
 
     public function test_proccess_shouldProcessOnce_IfExactNumberOfRequiredRequestsAreInQueue()
     {
-        $this->queue->addRequests($this->buildNumRequests(3));
+        $this->addNumRequestsToQueue(3);
 
         $tracker = $this->processor->process();
 
@@ -95,7 +95,7 @@ class ProcessorTest extends IntegrationTestCase
 
     public function test_proccess_shouldProcessOnlyNumberOfRequiredRequests_IfThereAreMoreRequests()
     {
-        $this->queue->addRequests($this->buildNumRequests(5));
+        $this->addNumRequestsToQueue(5);
 
         $tracker = $this->processor->process();
 
@@ -105,7 +105,7 @@ class ProcessorTest extends IntegrationTestCase
 
     public function test_proccess_shouldProcessMultipleTimes_IfThereAreManyMoreRequestsThanRequired()
     {
-        $this->queue->addRequests($this->buildNumRequests(10));
+        $this->addNumRequestsToQueue(10);
 
         $tracker = $this->processor->process();
 
@@ -115,7 +115,7 @@ class ProcessorTest extends IntegrationTestCase
 
     public function test_proccess_shouldNotProcessAnything_IfRecordStatisticsIsDisabled()
     {
-        $this->queue->addRequests($this->buildNumRequests(8));
+        $this->addNumRequestsToQueue(8);
 
         $record = TrackerConfig::getConfigValue('record_statistics');
         TrackerConfig::setConfigValue('record_statistics', 0);
@@ -128,20 +128,45 @@ class ProcessorTest extends IntegrationTestCase
         $this->assertNumberOfRequestsLeftInQueue(8);
     }
 
+    public function test_proccess_shouldProcessEachBulkRequestsWithinRequest()
+    {
+        $this->queue->addRequest($this->buildNumRequests(1));
+        $this->queue->addRequest($this->buildNumRequests(2)); // bulk
+        $this->queue->addRequest($this->buildNumRequests(4)); // bulk
+        $this->queue->addRequest($this->buildNumRequests(1));
+        $this->queue->addRequest($this->buildNumRequests(8)); // bulk
+
+        $tracker = $this->processor->process();
+
+        $this->assertSame(7, $tracker->getCountOfLoggedRequests());
+
+        $this->assertNumberOfRequestsLeftInQueue(2);
+    }
+
     private function assertNumberOfRequestsLeftInQueue($numRequestsLeftInQueue)
     {
         $this->assertCount($numRequestsLeftInQueue, $this->queue->getRequestsToProcess());
     }
 
+    private function addNumRequestsToQueue($numRequests)
+    {
+        for ($index = 1; $index <= $numRequests; $index++) {
+            $this->queue->addRequest($this->buildNumRequests(1));
+        }
+    }
+
     private function buildNumRequests($numRequests)
     {
-        $requests = array();
+        $req = new Requests();
 
+        $requests = array();
         for ($index = 1; $index <= $numRequests; $index++) {
-            $requests[] = new Request(array('idsite' => $index));
+            $requests[] = array('idsite' => $index);
         }
 
-        return $requests;
+        $req->setRequests($requests);
+
+        return $req;
     }
 
 }

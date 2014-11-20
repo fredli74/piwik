@@ -23,6 +23,8 @@ class Requests
      */
     private $requests = null;
 
+    private $env = array();
+
     /**
      * The token auth supplied with a bulk visits POST.
      *
@@ -275,5 +277,62 @@ class Requests
 
         return false;
     }
+
+    public function getState()
+    {
+        $requests = array(
+            'requests'  => array(),
+            'env'       => $this->getEnvironment(),
+            'tokenAuth' => $this->getTokenAuth(),
+            'time'      => time()
+        );
+
+        foreach ($this->getRequests() as $request) {
+            $requests['requests'][] = $request->getParams();
+            // todo we need to add cdt (timestamp) but we will need permission to restore later! etc
+        }
+
+        return $requests;
+    }
+
+    public function restoreState($state)
+    {
+        $this->setTokenAuth($state['tokenAuth']);
+        $this->setRequests($state['requests']);
+        $this->setEnvironment($state['env']);
+
+        foreach ($this->getRequests() as $request) {
+            $request->setCurrentTimestamp($state['time']);
+        }
+    }
+
+    public function rememberEnvironment()
+    {
+        $this->setEnvironment($this->getEnvironment());
+    }
+
+    private function setEnvironment($env)
+    {
+        $this->env = $env;
+    }
+
+    public function getEnvironment()
+    {
+        $this->env = array(
+            'server' => $_SERVER
+        );
+
+        return $this->env;
+    }
+
+    public function restoreEnvironment()
+    {
+        if (empty($this->env)) {
+            return;
+        }
+
+        $_SERVER = $this->env['server'];
+    }
+
 
 }

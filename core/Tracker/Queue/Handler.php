@@ -25,7 +25,7 @@ class Handler extends Tracker\Handler
     public function process(Tracker $tracker, Tracker\Requests $requests)
     {
         $queue = new Queue();
-        $queue->addRequests($requests->getRequests());
+        $queue->addRequest($requests);
         $tracker->setCountOfLoggedRequests($requests->getNumberOfRequests());
 
         Common::printDebug('Added requests to queue');
