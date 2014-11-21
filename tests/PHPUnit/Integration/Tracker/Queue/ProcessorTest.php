@@ -8,8 +8,7 @@
 
 namespace Piwik\Tests\Integration\Tracker;
 
-use Piwik\Tests\Framework\Fixture;
-use Piwik\Tracker\Requests;
+use Piwik\Tracker\RequestSet;
 use Piwik\Tracker\TrackerConfig;
 use Piwik\Tracker;
 use Piwik\Tracker\Queue\Backend\Redis;
@@ -70,52 +69,52 @@ class ProcessorTest extends IntegrationTestCase
         $tracker = $this->processor->process();
 
         $this->assertSame(0, $tracker->getCountOfLoggedRequests());
-        $this->assertNumberOfRequestsLeftInQueue(0);
+        $this->assertNumberOfRequestSetsLeftInQueue(0);
     }
 
     public function test_proccess_shouldDoNothing_IfLessThanRequiredRequestsAreInQueue()
     {
-        $this->addNumRequestsToQueue(2);
+        $this->addRequestSetsToQueue(2);
 
         $tracker = $this->processor->process();
 
         $this->assertSame(0, $tracker->getCountOfLoggedRequests());
-        $this->assertNumberOfRequestsLeftInQueue(2);
+        $this->assertNumberOfRequestSetsLeftInQueue(2);
     }
 
     public function test_proccess_shouldProcessOnce_IfExactNumberOfRequiredRequestsAreInQueue()
     {
-        $this->addNumRequestsToQueue(3);
+        $this->addRequestSetsToQueue(3);
 
         $tracker = $this->processor->process();
 
         $this->assertSame(3, $tracker->getCountOfLoggedRequests());
-        $this->assertNumberOfRequestsLeftInQueue(0);
+        $this->assertNumberOfRequestSetsLeftInQueue(0);
     }
 
     public function test_proccess_shouldProcessOnlyNumberOfRequiredRequests_IfThereAreMoreRequests()
     {
-        $this->addNumRequestsToQueue(5);
+        $this->addRequestSetsToQueue(5);
 
         $tracker = $this->processor->process();
 
         $this->assertSame(3, $tracker->getCountOfLoggedRequests());
-        $this->assertNumberOfRequestsLeftInQueue(2);
+        $this->assertNumberOfRequestSetsLeftInQueue(2);
     }
 
     public function test_proccess_shouldProcessMultipleTimes_IfThereAreManyMoreRequestsThanRequired()
     {
-        $this->addNumRequestsToQueue(10);
+        $this->addRequestSetsToQueue(10);
 
         $tracker = $this->processor->process();
 
         $this->assertSame(9, $tracker->getCountOfLoggedRequests());
-        $this->assertNumberOfRequestsLeftInQueue(1);
+        $this->assertNumberOfRequestSetsLeftInQueue(1);
     }
 
     public function test_proccess_shouldNotProcessAnything_IfRecordStatisticsIsDisabled()
     {
-        $this->addNumRequestsToQueue(8);
+        $this->addRequestSetsToQueue(8);
 
         $record = TrackerConfig::getConfigValue('record_statistics');
         TrackerConfig::setConfigValue('record_statistics', 0);
@@ -125,39 +124,39 @@ class ProcessorTest extends IntegrationTestCase
         $this->assertSame(0, $tracker->getCountOfLoggedRequests());
 
         $this->queue->setNumberOfRequestsToProcessAtSameTime(100); // would otherwise only read max 3 requests
-        $this->assertNumberOfRequestsLeftInQueue(8);
+        $this->assertNumberOfRequestSetsLeftInQueue(8);
     }
 
     public function test_proccess_shouldProcessEachBulkRequestsWithinRequest()
     {
-        $this->queue->addRequest($this->buildNumRequests(1));
-        $this->queue->addRequest($this->buildNumRequests(2)); // bulk
-        $this->queue->addRequest($this->buildNumRequests(4)); // bulk
-        $this->queue->addRequest($this->buildNumRequests(1));
-        $this->queue->addRequest($this->buildNumRequests(8)); // bulk
+        $this->queue->addRequestSet($this->buildRequestSet(1));
+        $this->queue->addRequestSet($this->buildRequestSet(2)); // bulk
+        $this->queue->addRequestSet($this->buildRequestSet(4)); // bulk
+        $this->queue->addRequestSet($this->buildRequestSet(1));
+        $this->queue->addRequestSet($this->buildRequestSet(8)); // bulk
 
         $tracker = $this->processor->process();
 
         $this->assertSame(7, $tracker->getCountOfLoggedRequests());
 
-        $this->assertNumberOfRequestsLeftInQueue(2);
+        $this->assertNumberOfRequestSetsLeftInQueue(2);
     }
 
-    private function assertNumberOfRequestsLeftInQueue($numRequestsLeftInQueue)
+    private function assertNumberOfRequestSetsLeftInQueue($numRequestsLeftInQueue)
     {
-        $this->assertCount($numRequestsLeftInQueue, $this->queue->getRequestsToProcess());
+        $this->assertCount($numRequestsLeftInQueue, $this->queue->getRequestSetsToProcess());
     }
 
-    private function addNumRequestsToQueue($numRequests)
+    private function addRequestSetsToQueue($numRequestSets)
     {
-        for ($index = 1; $index <= $numRequests; $index++) {
-            $this->queue->addRequest($this->buildNumRequests(1));
+        for ($index = 1; $index <= $numRequestSets; $index++) {
+            $this->queue->addRequestSet($this->buildRequestSet(1));
         }
     }
 
-    private function buildNumRequests($numRequests)
+    private function buildRequestSet($numRequests)
     {
-        $req = new Requests();
+        $req = new RequestSet();
 
         $requests = array();
         for ($index = 1; $index <= $numRequests; $index++) {

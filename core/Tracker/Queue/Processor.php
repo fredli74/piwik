@@ -10,7 +10,7 @@
 namespace Piwik\Tracker\Queue;
 
 use Piwik\Tracker;
-use Piwik\Tracker\Requests;
+use Piwik\Tracker\RequestSet;
 use Piwik\Tracker\Queue;
 use Piwik\Tracker\Queue\Backend\Redis;
 
@@ -46,46 +46,46 @@ class Processor
             return $tracker;
         }
 
-        $requests = new Requests();
-        $requests->rememberEnvironment();
+        $request = new RequestSet();
+        $request->rememberEnvironment();
 
         while ($this->queue->shouldProcess()) {
             $numTrackedRequests = $tracker->getCountOfLoggedRequests();
 
-            $queuedRequests    = $this->queue->getRequestsToProcess();
-            $processedRequests = $this->processRequests($tracker, $queuedRequests);
+            $queuedRequestSets = $this->queue->getRequestSetsToProcess();
+            $validRequestSets  = $this->processRequestSets($tracker, $queuedRequestSets);
 
-            if ($this->needsARetry($queuedRequests, $processedRequests)) {
+            if ($this->needsARetry($queuedRequestSets, $validRequestSets)) {
                 // try once more without the failed ones
                 $tracker->setCountOfLoggedRequests($numTrackedRequests);
-                $this->processRequests($tracker, $processedRequests);
+                $this->processRequestSets($tracker, $validRequestSets);
             }
 
-            $this->queue->markRequestsAsProcessed();
+            $this->queue->markRequestSetsAsProcessed();
             // in case of DB Exception maybe not mark them as processed and stop
             // queue. (Also Log an error which could then once we use Monolog trigger an email or so)
         }
 
-        $requests->restoreEnvironment();
+        $request->restoreEnvironment();
 
         return $tracker;
     }
 
     /**
-     * @param Requests[] $queuedRequests
-     * @param Requests[] $processedRequests
+     * @param  RequestSet[] $queuedRequestSets
+     * @param  RequestSet[] $validRequestSets
      * @return boolean
      */
-    private function needsARetry($queuedRequests, $processedRequests)
+    private function needsARetry($queuedRequestSets, $validRequestSets)
     {
-        if (count($queuedRequests) != count($processedRequests)) {
+        if (count($queuedRequestSets) != count($validRequestSets)) {
             return true;
         }
 
-        foreach ($queuedRequests as $index => $request) {
+        foreach ($queuedRequestSets as $index => $request) {
 
             $numQueued    = count($request->getRequests());
-            $numProcessed = count($processedRequests[$index]->getRequests());
+            $numProcessed = count($validRequestSets[$index]->getRequests());
 
             if ($numQueued !== $numProcessed) {
                 return true;
@@ -97,29 +97,29 @@ class Processor
 
     /**
      * @param Tracker $tracker
-     * @param Requests[] $queuedRequests
+     * @param RequestSet[] $queuedRequestSets
      * @return mixed
      */
-    private function processRequests(Tracker $tracker, $queuedRequests)
+    private function processRequestSets(Tracker $tracker, $queuedRequestSets)
     {
-        $this->expireLock($ttlInSeconds = 180); // todo this processor does not really now it was locked by another class so should not really expire it.
+        $this->expireLock($ttlInSeconds = 300); // todo this processor does not really know it was locked by another class so should not really expire it.
 
-        $processedRequests = array();
+        $validRequestSets = array();
 
         $transaction = $this->getDb()->beginTransaction();
         $hasError = false;
 
-        foreach ($queuedRequests as $index => $requests) {
-            $requests->restoreEnvironment();
+        foreach ($queuedRequestSets as $index => $requestSet) {
+            $requestSet->restoreEnvironment();
 
             $count = 0;
 
             try {
-                foreach ($requests->getRequests() as $request) {
+                foreach ($requestSet->getRequests() as $request) {
                     $tracker->trackRequest($request);
                     $count++;
                 }
-                $processedRequests[] = $requests;
+                $validRequestSets[] = $requestSet;
             } catch (\Exception $e) {
                 // TODO
                 // TODO also handle db exception maybe differently
@@ -127,9 +127,9 @@ class Processor
 
                 if ($count > 0) {
                     // remove the first one that failed and all following (standard bulk tracking behavior)
-                    $insertedRequests = array_slice($requests->getRequests(), 0, $count);
-                    $requests->setRequests($insertedRequests);
-                    $processedRequests[] = $requests;
+                    $insertedRequests = array_slice($requestSet->getRequests(), 0, $count);
+                    $requestSet->setRequests($insertedRequests);
+                    $validRequestSets[] = $requestSet;
                 }
 
             }
@@ -141,7 +141,7 @@ class Processor
             $this->getDb()->commit($transaction);
         }
 
-        return $processedRequests;
+        return $validRequestSets;
     }
 
     private function getDb()

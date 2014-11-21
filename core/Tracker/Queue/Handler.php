@@ -12,6 +12,7 @@ namespace Piwik\Tracker\Queue;
 use Piwik\Common;
 use Piwik\Tracker;
 use Piwik\Tracker\Queue;
+use Piwik\Tracker\RequestSet;
 use Exception;
 use Piwik\Url;
 
@@ -22,15 +23,15 @@ class Handler extends Tracker\Handler
         $this->setResponse(new Response());
     }
 
-    public function process(Tracker $tracker, Tracker\Requests $requests)
+    public function process(Tracker $tracker, RequestSet $requestSet)
     {
         $queue = new Queue();
-        $queue->addRequest($requests);
-        $tracker->setCountOfLoggedRequests($requests->getNumberOfRequests());
+        $queue->addRequestSet($requestSet);
+        $tracker->setCountOfLoggedRequests($requestSet->getNumberOfRequests());
 
         Common::printDebug('Added requests to queue');
 
-        $this->sendResponse($tracker, $requests);
+        $this->sendResponse($tracker, $requestSet);
         $this->processQueueIfNeeded($queue);
     }
 

@@ -8,7 +8,7 @@
  * @package Piwik
  */
 
-use Piwik\Tracker\Requests;
+use Piwik\Tracker\RequestSet;
 use Piwik\Tracker\Queue;
 use Piwik\Tracker\Queue\Handler as QueueHandler;
 use Piwik\Tracker;
@@ -89,9 +89,9 @@ session_cache_limiter('nocache');
 @date_default_timezone_set('UTC');
 set_time_limit(0);
 
-$tracker  = new Tracker();
-$requests = new Requests();
-$queue    = new Queue();
+$tracker    = new Tracker();
+$requestSet = new RequestSet();
+$queue      = new Queue();
 
 ob_start();
 
@@ -99,13 +99,13 @@ try {
 
     if ($queue->isEnabled()) {
         $handler = new QueueHandler();
-    } elseif ($requests->isUsingBulkRequest()) {
+    } elseif ($requestSet->isUsingBulkRequest()) {
         $handler = new BulkTrackingHandler();
     } else {
         $handler = new DefaultHandler();
     }
 
-    $tracker->main($handler, $requests);
+    $tracker->main($handler, $requestSet);
 
 } catch (Exception $e) {
     echo "Error:" . $e->getMessage();

@@ -35,25 +35,25 @@ class Handler
         $this->response = $response;
     }
 
-    public function init(Tracker $tracker, Tracker\Requests $requests)
+    public function init(Tracker $tracker, RequestSet $requestSet)
     {
         $tracker->init();
 
         $this->response->init($tracker);
     }
 
-    public function process(Tracker $tracker, Tracker\Requests $requests)
+    public function process(Tracker $tracker, RequestSet $requestSet)
     {
-        foreach ($requests->getRequests() as $request) {
-            $tracker->trackRequest($request, $requests->getTokenAuth());
+        foreach ($requestSet->getRequests() as $request) {
+            $tracker->trackRequest($request, $requestSet->getTokenAuth());
         }
     }
 
-    public function onStartTrackRequests(Tracker $tracker, Tracker\Requests $requests)
+    public function onStartTrackRequests(Tracker $tracker, RequestSet $requestSet)
     {
     }
 
-    public function onAllRequestsTracked(Tracker $tracker, Tracker\Requests $requests)
+    public function onAllRequestsTracked(Tracker $tracker, RequestSet $requestSet)
     {
         $tasks = new ScheduledTasksRunner();
         if ($tasks->shouldRun($tracker)) {
@@ -79,22 +79,22 @@ class Handler
         exit;
     }
 
-    public function finish(Tracker $tracker, Tracker\Requests $requests)
+    public function finish(Tracker $tracker, RequestSet $requestSet)
     {
         Piwik::postEvent('Tracker.end');
 
         $tracker->disconnectDatabase();
 
-        $this->sendResponse($tracker, $requests);
+        $this->sendResponse($tracker, $requestSet);
     }
 
     /**
      * @param Tracker $tracker
-     * @param Tracker\Requests $requests
+     * @param Tracker\RequestSet $requestSet
      */
-    protected function sendResponse(Tracker $tracker, Tracker\Requests $requests)
+    protected function sendResponse(Tracker $tracker, RequestSet $requestSet)
     {
-        $redirectUrl = $requests->shouldPerformRedirectToUrl();
+        $redirectUrl = $requestSet->shouldPerformRedirectToUrl();
 
         if (!empty($redirectUrl)) {
             Url::redirectToUrl($redirectUrl);

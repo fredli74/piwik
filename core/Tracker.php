@@ -14,7 +14,7 @@ use Piwik\Tracker\Db as TrackerDb;
 use Piwik\Tracker\Db\DbException;
 use Piwik\Tracker\Handler;
 use Piwik\Tracker\Request;
-use Piwik\Tracker\Requests;
+use Piwik\Tracker\RequestSet;
 use Piwik\Tracker\TrackerConfig;
 use Piwik\Tracker\Visit;
 use Piwik\Tracker\VisitInterface;
@@ -82,32 +82,32 @@ class Tracker
         return $this->isInstalled;
     }
 
-    public function main(Handler $handler, Requests $requests)
+    public function main(Handler $handler, RequestSet $requestSet)
     {
-        $handler->init($this, $requests);
-        $this->track($handler, $requests);
-        $handler->finish($this, $requests);
+        $handler->init($this, $requestSet);
+        $this->track($handler, $requestSet);
+        $handler->finish($this, $requestSet);
     }
 
-    public function track(Handler $handler, Requests $requests)
+    public function track(Handler $handler, RequestSet $requestSet)
     {
         if (!$this->shouldRecordStatistics()) {
             return;
         }
 
         try {
-            $requests->initRequestsAndTokenAuth(); // eg Bulk Tracking could throw exception in case not authenticated
+            $requestSet->initRequestsAndTokenAuth(); // eg Bulk Tracking could throw exception in case not authenticated
         } catch (Exception $e) {
             $handler->onException($this, $e);
             return;
         }
 
-        if ($requests->hasRequests()) {
+        if ($requestSet->hasRequests()) {
             try {
 
-                $handler->onStartTrackRequests($this, $requests);
-                $handler->process($this, $requests);
-                $handler->onAllRequestsTracked($this, $requests);
+                $handler->onStartTrackRequests($this, $requestSet);
+                $handler->process($this, $requestSet);
+                $handler->onAllRequestsTracked($this, $requestSet);
 
             } catch (Exception $e) {
                 $handler->onException($this, $e);

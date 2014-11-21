@@ -14,7 +14,7 @@ use Piwik\Tracker\Queue\Backend\Redis;
 use Piwik\Tracker\Queue;
 use Piwik\Translate;
 use Piwik\Tests\Framework\TestCase\IntegrationTestCase;
-use Piwik\Tracker\Requests;
+use Piwik\Tracker\RequestSet;
 use Piwik\Tracker\Request;
 
 /**
@@ -45,44 +45,44 @@ class QueueTest extends IntegrationTestCase
         parent::tearDown();
     }
 
-    public function test_internalBuildRequests_ShouldReturnRequestObjects()
+    public function test_internalBuildRequestsSet_ShouldReturnRequestObjects()
     {
-        $this->assertTrue($this->buildNumRequests(0) instanceof Requests);
-        $this->assertEquals(array(), $this->buildNumRequests(0)->getRequests());
+        $this->assertTrue($this->buildRequestSet(0) instanceof RequestSet);
+        $this->assertEquals(array(), $this->buildRequestSet(0)->getRequests());
 
-        $this->assertTrue($this->buildNumRequests(3) instanceof Requests);
+        $this->assertTrue($this->buildRequestSet(3) instanceof RequestSet);
 
         $this->assertEquals(array(
             new Request(array('idsite' => 1)),
             new Request(array('idsite' => 2)),
             new Request(array('idsite' => 3)),
-        ), $this->buildNumRequests(3)->getRequests());
+        ), $this->buildRequestSet(3)->getRequests());
 
-        $this->assertTrue($this->buildNumRequests(10) instanceof Requests);
-        $this->assertCount(10, $this->buildNumRequests(10)->getRequests());
+        $this->assertTrue($this->buildRequestSet(10) instanceof RequestSet);
+        $this->assertCount(10, $this->buildRequestSet(10)->getRequests());
     }
 
-    public function test_internalBuildRequests_ShouldBeAbleToSpecifyTheSiteId()
+    public function test_internalBuildRequestsSet_ShouldBeAbleToSpecifyTheSiteId()
     {
         $this->assertEquals(array(
             new Request(array('idsite' => 2)),
             new Request(array('idsite' => 2)),
             new Request(array('idsite' => 2)),
-        ), $this->buildNumRequests(3, 2)->getRequests());
+        ), $this->buildRequestSet(3, 2)->getRequests());
     }
 
     public function test_internalBuildManyRequestsContainingRequests_ShouldReturnManyRequestObjects()
     {
-        $this->assertEquals(array(), $this->buildManyRequestsContainingRequests(0));
-        $this->assertEquals(array($this->buildNumRequests(1)), $this->buildManyRequestsContainingRequests(1));
+        $this->assertEquals(array(), $this->buildManyRequestSets(0));
+        $this->assertEquals(array($this->buildRequestSet(1)), $this->buildManyRequestSets(1));
 
-        $this->assertManyRequestsAreEqual(array(
-            $this->buildNumRequests(1),
-            $this->buildNumRequests(1, 2),
-            $this->buildNumRequests(1, 3),
-            $this->buildNumRequests(1, 4),
-            $this->buildNumRequests(1, 5),
-        ), $this->buildManyRequestsContainingRequests(5));
+        $this->assertManyRequestSetsAreEqual(array(
+            $this->buildRequestSet(1),
+            $this->buildRequestSet(1, 2),
+            $this->buildRequestSet(1, 3),
+            $this->buildRequestSet(1, 4),
+            $this->buildRequestSet(1, 5),
+        ), $this->buildManyRequestSets(5));
     }
 
     public function test_isEnabled_ShouldReturnFalse_IfDisabled_WhichItShouldBeByDefault()
@@ -100,29 +100,29 @@ class QueueTest extends IntegrationTestCase
         TrackerConfig::setConfigValue('queue_enabled', $value);
     }
 
-    public function test_addRequest_ShouldNotAddAnything_IfNoRequestsGiven()
+    public function test_addRequestSet_ShouldNotAddAnything_IfNoRequestsGiven()
     {
-        $this->queue->addRequest(new Requests());
-        $this->assertEquals(array(), $this->queue->getRequestsToProcess());
+        $this->queue->addRequestSet(new RequestSet());
+        $this->assertEquals(array(), $this->queue->getRequestSetsToProcess());
     }
 
-    public function test_addRequest_ShouldBeAble_ToAddARequest()
+    public function test_addRequestSet_ShouldBeAble_ToAddARequest()
     {
-        $this->queue->addRequest($this->buildNumRequests(1));
+        $this->queue->addRequestSet($this->buildRequestSet(1));
 
-        $this->assertManyRequestsAreEqual(array($this->buildNumRequests(1)), $this->queue->getRequestsToProcess());
+        $this->assertManyRequestSetsAreEqual(array($this->buildRequestSet(1)), $this->queue->getRequestSetsToProcess());
     }
 
-    public function test_addRequest_ShouldBeAble_ToAddARequestWithManyRequests()
+    public function test_addRequestSet_ShouldBeAble_ToAddARequestWithManyRequests()
     {
-        $this->queue->addRequest($this->buildNumRequests(2));
-        $this->queue->addRequest($this->buildNumRequests(1));
+        $this->queue->addRequestSet($this->buildRequestSet(2));
+        $this->queue->addRequestSet($this->buildRequestSet(1));
 
         $expected = array(
-            $this->buildNumRequests(2),
-            $this->buildNumRequests(1)
+            $this->buildRequestSet(2),
+            $this->buildRequestSet(1)
         );
-        $this->assertManyRequestsAreEqual($expected, $this->queue->getRequestsToProcess());
+        $this->assertManyRequestSetsAreEqual($expected, $this->queue->getRequestSetsToProcess());
     }
 
     public function test_shouldProcess_ShouldReturnValue_WhenQueueIsEmptyOrHasTooLessRequests()
@@ -133,113 +133,113 @@ class QueueTest extends IntegrationTestCase
     public function test_shouldProcess_ShouldReturnTrue_OnceNumberOfRequestsAreAvailable()
     {
         // 2 < 3 should return false
-        $this->addNumberOfRequestsToQueue(2);
+        $this->addRequestSetsToQueue(2);
         $this->assertFalse($this->queue->shouldProcess());
 
         // now min number of requests is reached
-        $this->addNumberOfRequestsToQueue(1);
+        $this->addRequestSetsToQueue(1);
         $this->assertTrue($this->queue->shouldProcess());
 
         // when there are more than 3 requests (5) should still return true
-        $this->addNumberOfRequestsToQueue(2);
+        $this->addRequestSetsToQueue(2);
         $this->assertTrue($this->queue->shouldProcess());
     }
 
     public function test_shouldProcess_ShouldReturnTrue_AsLongAsThereAreEnoughRequestsInQueue()
     {
         // 5 > 3 so should process
-        $this->addNumberOfRequestsToQueue(5);
+        $this->addRequestSetsToQueue(5);
         $this->assertTrue($this->queue->shouldProcess());
 
         // should no longer process as now 5 - 3 = 2 requests are in queue
-        $this->queue->markRequestsAsProcessed();
+        $this->queue->markRequestSetsAsProcessed();
         $this->assertFalse($this->queue->shouldProcess());
 
         // 6 + 2 = 8 which > 3
-        $this->addNumberOfRequestsToQueue(6);
+        $this->addRequestSetsToQueue(6);
         $this->assertTrue($this->queue->shouldProcess());
 
         // 8 - 3 = 5 which > 3
-        $this->queue->markRequestsAsProcessed();
+        $this->queue->markRequestSetsAsProcessed();
         $this->assertTrue($this->queue->shouldProcess());
 
         // 5 - 3 = 2 which < 3
-        $this->queue->markRequestsAsProcessed();
+        $this->queue->markRequestSetsAsProcessed();
         $this->assertFalse($this->queue->shouldProcess());
     }
 
-    public function test_getRequestsToProcess_shouldReturnAnEmptyArrayIfQueueIsEmpty()
+    public function test_getRequestSetsToProcess_shouldReturnAnEmptyArrayIfQueueIsEmpty()
     {
-        $this->assertEquals(array(), $this->queue->getRequestsToProcess());
+        $this->assertEquals(array(), $this->queue->getRequestSetsToProcess());
     }
 
-    public function test_getRequestsToProcess_shouldReturnAllRequestsIfThereAreLessThanRequired()
+    public function test_getRequestSetsToProcess_shouldReturnAllRequestsIfThereAreLessThanRequired()
     {
-        $this->queue->addRequest($this->buildNumRequests(2));
+        $this->queue->addRequestSet($this->buildRequestSet(2));
 
-        $requests = $this->queue->getRequestsToProcess();
-        $expected = array($this->buildNumRequests(2));
+        $requests = $this->queue->getRequestSetsToProcess();
+        $expected = array($this->buildRequestSet(2));
 
-        $this->assertManyRequestsAreEqual($expected, $requests);
+        $this->assertManyRequestSetsAreEqual($expected, $requests);
     }
 
-    public function test_getRequestsToProcess_shouldReturnOnlyTheRequestsThatActuallyNeedToBeProcessed_IfQueueContainsMoreEntries()
+    public function test_getRequestSetsToProcess_shouldReturnOnlyTheRequestsThatActuallyNeedToBeProcessed_IfQueueContainsMoreEntries()
     {
-        $this->addNumberOfRequestsToQueue(10);
+        $this->addRequestSetsToQueue(10);
 
-        $requests = $this->queue->getRequestsToProcess();
-        $expected = $this->buildManyRequestsContainingRequests(3);
+        $requests = $this->queue->getRequestSetsToProcess();
+        $expected = $this->buildManyRequestSets(3);
 
-        $this->assertManyRequestsAreEqual($expected, $requests);
+        $this->assertManyRequestSetsAreEqual($expected, $requests);
     }
 
-    public function test_getRequestsToProcess_shouldNotRemoveAnyEntriesFromTheQueue()
+    public function test_getRequestSetsToProcess_shouldNotRemoveAnyEntriesFromTheQueue()
     {
-        $this->addNumberOfRequestsToQueue(5);
+        $this->addRequestSetsToQueue(5);
 
-        $expected = $this->buildManyRequestsContainingRequests(3);
+        $expected = $this->buildManyRequestSets(3);
 
-        $this->assertManyRequestsAreEqual($expected, $this->queue->getRequestsToProcess());
-        $this->assertManyRequestsAreEqual($expected, $this->queue->getRequestsToProcess());
-        $this->assertManyRequestsAreEqual($expected, $this->queue->getRequestsToProcess());
+        $this->assertManyRequestSetsAreEqual($expected, $this->queue->getRequestSetsToProcess());
+        $this->assertManyRequestSetsAreEqual($expected, $this->queue->getRequestSetsToProcess());
+        $this->assertManyRequestSetsAreEqual($expected, $this->queue->getRequestSetsToProcess());
     }
 
-    public function test_markRequestsAsProcessed_ShouldNotFail_IfQueueIsEmpty()
+    public function test_markRequestSetsAsProcessed_ShouldNotFail_IfQueueIsEmpty()
     {
-        $this->queue->markRequestsAsProcessed();
-        $this->assertEquals(array(), $this->queue->getRequestsToProcess());
+        $this->queue->markRequestSetsAsProcessed();
+        $this->assertEquals(array(), $this->queue->getRequestSetsToProcess());
     }
 
-    public function test_markRequestsAsProcessed_ShouldRemoveTheConfiguredNumberOfRequests()
+    public function test_markRequestSetsAsProcessed_ShouldRemoveTheConfiguredNumberOfRequests()
     {
-        $this->addNumberOfRequestsToQueue(5);
+        $this->addRequestSetsToQueue(5);
 
         $expected = array(
-            $this->buildNumRequests(1, 1),
-            $this->buildNumRequests(1, 2),
-            $this->buildNumRequests(1, 3)
+            $this->buildRequestSet(1, 1),
+            $this->buildRequestSet(1, 2),
+            $this->buildRequestSet(1, 3)
         );
 
-        $this->assertManyRequestsAreEqual($expected, $this->queue->getRequestsToProcess());
+        $this->assertManyRequestSetsAreEqual($expected, $this->queue->getRequestSetsToProcess());
 
-        $this->queue->markRequestsAsProcessed();
+        $this->queue->markRequestSetsAsProcessed();
 
         $expected = array(
-            $this->buildNumRequests(1, 4),
-            $this->buildNumRequests(1, 5)
+            $this->buildRequestSet(1, 4),
+            $this->buildRequestSet(1, 5)
         );
 
-        $this->assertManyRequestsAreEqual($expected, $this->queue->getRequestsToProcess());
+        $this->assertManyRequestSetsAreEqual($expected, $this->queue->getRequestSetsToProcess());
 
-        $this->queue->markRequestsAsProcessed();
-        $this->assertEquals(array(), $this->queue->getRequestsToProcess());
+        $this->queue->markRequestSetsAsProcessed();
+        $this->assertEquals(array(), $this->queue->getRequestSetsToProcess());
     }
 
     /**
-     * @param Requests[] $expected
-     * @param Requests[] $actual
+     * @param RequestSet[] $expected
+     * @param RequestSet[] $actual
      */
-    private function assertManyRequestsAreEqual(array $expected, array $actual)
+    private function assertManyRequestSetsAreEqual(array $expected, array $actual)
     {
         $this->assertSameSize($expected, $actual);
 
@@ -248,10 +248,10 @@ class QueueTest extends IntegrationTestCase
         }
     }
 
-    private function assertRequestsAreEqual(Requests $expected, Requests $actual)
+    private function assertRequestsAreEqual(RequestSet $expected, RequestSet $actual)
     {
         $eState = $expected->getState();
-        $aState = $expected->getState();
+        $aState = $actual->getState();
 
         $eTime = $eState['time'];
         $aTime = $aState['time'];
@@ -264,17 +264,18 @@ class QueueTest extends IntegrationTestCase
             unset($aState['REQUEST_TIME_FLOAT']);
         }
 
+        $this->assertGreaterThan(100000, $aTime);
         $this->assertTrue(($aTime - 5 < $eTime) && ($aTime + 5 > $eTime), "$eTime is not nearly $aTime");
         $this->assertEquals($eState, $aState);
     }
 
-    private function buildNumRequests($numRequests, $idToUse = null)
+    private function buildRequestSet($numRequests, $idSite = null)
     {
-        $req = new Requests();
+        $req = new RequestSet();
 
         $requests = array();
         for ($index = 1; $index <= $numRequests; $index++) {
-            $requests[] = array('idsite' => $idToUse ?: $index);
+            $requests[] = array('idsite' => $idSite ?: $index);
         }
 
         $req->setRequests($requests);
@@ -283,20 +284,20 @@ class QueueTest extends IntegrationTestCase
         return $req;
     }
 
-    private function buildManyRequestsContainingRequests($numRequests)
+    private function buildManyRequestSets($numRequestSets)
     {
         $requests = array();
-        for ($index = 1; $index <= $numRequests; $index++) {
-            $requests[] = $this->buildNumRequests(1, $index);
+        for ($index = 1; $index <= $numRequestSets; $index++) {
+            $requests[] = $this->buildRequestSet(1, $index);
         }
 
         return $requests;
     }
 
-    private function addNumberOfRequestsToQueue($numRequests)
+    private function addRequestSetsToQueue($numRequestSets)
     {
-        for ($index = 1; $index <= $numRequests; $index++) {
-            $this->queue->addRequest($this->buildNumRequests(1, $index));
+        for ($index = 1; $index <= $numRequestSets; $index++) {
+            $this->queue->addRequestSet($this->buildRequestSet(1, $index));
         }
     }
 

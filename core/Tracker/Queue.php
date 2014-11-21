@@ -31,7 +31,7 @@ class Queue
         $this->numRequestsToProcessAtSameTime = $numRequests;
     }
 
-    public function addRequest(Requests $requests)
+    public function addRequestSet(RequestSet $requests)
     {
         if (!$requests->hasRequests()) {
             return;
@@ -51,9 +51,9 @@ class Queue
     }
 
     /**
-     * @return Requests[]
+     * @return RequestSet[]
      */
-    public function getRequestsToProcess()
+    public function getRequestSetsToProcess()
     {
         $values = $this->backend->getFirstXValuesFromList($this->key, $this->numRequestsToProcessAtSameTime);
 
@@ -61,7 +61,7 @@ class Queue
         foreach ($values as $value) {
             $params = json_decode($value, true);
 
-            $request = new Requests();
+            $request = new RequestSet();
             $request->restoreState($params);
             $requests[] = $request;
         }
@@ -69,7 +69,7 @@ class Queue
         return $requests;
     }
 
-    public function markRequestsAsProcessed()
+    public function markRequestSetsAsProcessed()
     {
         $this->backend->removeFirstXValuesFromList($this->key, $this->numRequestsToProcessAtSameTime);
     }

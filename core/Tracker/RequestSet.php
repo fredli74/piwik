@@ -13,7 +13,7 @@ use Piwik\Plugins\SitesManager\SiteUrls;
 use Piwik\Url;
 use Piwik\Tracker\BulkTracking\Requests as BulkTrackingRequest;
 
-class Requests
+class RequestSet
 {
     /**
      * The set of visits to track.

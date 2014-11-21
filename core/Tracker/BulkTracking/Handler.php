@@ -10,6 +10,7 @@
 namespace Piwik\Tracker\BulkTracking;
 
 use Piwik\Tracker;
+use Piwik\Tracker\RequestSet;
 use Piwik\Tracker\TrackerConfig;
 use Exception;
 
@@ -22,14 +23,14 @@ class Handler extends Tracker\Handler
         $this->setResponse(new Response());
     }
 
-    public function onStartTrackRequests(Tracker $tracker, Tracker\Requests $requests)
+    public function onStartTrackRequests(Tracker $tracker, RequestSet $requestSet)
     {
         if ($this->isTransactionSupported()) {
             $this->beginTransaction();
         }
     }
 
-    public function onAllRequestsTracked(Tracker $tracker, Tracker\Requests $requests)
+    public function onAllRequestsTracked(Tracker $tracker, RequestSet $requestSet)
     {
         $this->commitTransaction();
 
