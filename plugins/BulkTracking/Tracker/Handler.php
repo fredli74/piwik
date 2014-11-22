@@ -7,7 +7,7 @@
  *
  */
 
-namespace Piwik\Tracker\BulkTracking;
+namespace Piwik\Plugins\BulkTracking\Tracker;
 
 use Piwik\Tracker;
 use Piwik\Tracker\RequestSet;

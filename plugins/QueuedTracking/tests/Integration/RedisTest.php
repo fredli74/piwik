@@ -6,13 +6,14 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
 
-namespace Piwik\Tests\Integration\Tracker;
+namespace Piwik\Plugins\QueuedTracking\tests\Integration;
 
-use Piwik\Tracker\Queue\Backend\Redis;
-use Piwik\Translate;
 use Piwik\Tests\Framework\TestCase\IntegrationTestCase;
+use Piwik\Plugins\QueuedTracking\Queue\Backend\Redis;
+use Piwik\Translate;
 
 /**
+ * @group QueuedTracking
  * @group Redis
  * @group RedisTest
  * @group Queue

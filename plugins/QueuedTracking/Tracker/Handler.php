@@ -7,11 +7,12 @@
  *
  */
 
-namespace Piwik\Tracker\Queue;
+namespace Piwik\Plugins\QueuedTracking\Tracker;
 
 use Piwik\Common;
 use Piwik\Tracker;
-use Piwik\Tracker\Queue;
+use Piwik\Plugins\QueuedTracking\Queue;
+use Piwik\Plugins\QueuedTracking\Queue\Processor;
 use Piwik\Tracker\RequestSet;
 use Exception;
 use Piwik\Url;

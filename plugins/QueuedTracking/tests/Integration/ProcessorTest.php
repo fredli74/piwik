@@ -6,18 +6,19 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
 
-namespace Piwik\Tests\Integration\Tracker;
+namespace Piwik\Plugins\QueuedTracking\tests\Integration;
 
+use Piwik\Tests\Framework\TestCase\IntegrationTestCase;
 use Piwik\Tracker\RequestSet;
 use Piwik\Tracker\TrackerConfig;
 use Piwik\Tracker;
-use Piwik\Tracker\Queue\Backend\Redis;
-use Piwik\Tracker\Queue;
-use Piwik\Tracker\Queue\Processor;
+use Piwik\Plugins\QueuedTracking\Queue\Backend\Redis;
+use Piwik\Plugins\QueuedTracking\Queue;
+use Piwik\Plugins\QueuedTracking\Queue\Processor;
 use Piwik\Translate;
-use Piwik\Tests\Framework\TestCase\IntegrationTestCase;
 
 /**
+ * @group QueuedTracking
  * @group Queue
  * @group ProcessorTest
  * @group Tracker
@@ -25,6 +26,7 @@ use Piwik\Tests\Framework\TestCase\IntegrationTestCase;
  */
 class ProcessorTest extends IntegrationTestCase
 {
+
     /**
      * @var Processor
      */
@@ -167,5 +169,4 @@ class ProcessorTest extends IntegrationTestCase
 
         return $req;
     }
-
 }

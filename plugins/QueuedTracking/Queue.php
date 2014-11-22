@@ -6,11 +6,13 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  */
-namespace Piwik\Tracker;
+namespace Piwik\Plugins\QueuedTracking;
 
+use Piwik\Tracker\RequestSet;
+use Piwik\Tracker\TrackerConfig;
 use Piwik\Tracker;
 use Piwik\Translate;
-use Piwik\Tracker\Queue\Backend\Redis;
+use Piwik\Plugins\QueuedTracking\Queue\Backend\Redis;
 
 class Queue
 {
@@ -18,6 +20,7 @@ class Queue
      * @var Redis
      */
     private $backend;
+
     private $key = 'trackingQueueV1';
     private $numRequestsToProcessAtSameTime = 50;
 

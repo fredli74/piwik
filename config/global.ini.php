@@ -718,6 +718,8 @@ Plugins[] = LeftMenu
 Plugins[] = Morpheus
 Plugins[] = Contents
 Plugins[] = TestRunner
+Plugins[] = BulkTracking
+Plugins[] = QueuedTracking
 
 [PluginsInstalled]
 PluginsInstalled[] = Login

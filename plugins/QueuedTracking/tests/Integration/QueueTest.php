@@ -6,18 +6,19 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
 
-namespace Piwik\Tests\Integration\Tracker;
+namespace Piwik\Plugins\QueuedTracking\tests\Integration;
 
 use Piwik\Tracker\TrackerConfig;
 use Piwik\Tracker;
-use Piwik\Tracker\Queue\Backend\Redis;
-use Piwik\Tracker\Queue;
+use Piwik\Plugins\QueuedTracking\Queue\Backend\Redis;
+use Piwik\Plugins\QueuedTracking\Queue;
 use Piwik\Translate;
 use Piwik\Tests\Framework\TestCase\IntegrationTestCase;
 use Piwik\Tracker\RequestSet;
 use Piwik\Tracker\Request;
 
 /**
+ * @group QueuedTracking
  * @group Queue
  * @group QueueTest
  * @group Tracker

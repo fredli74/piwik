@@ -9,11 +9,8 @@
  */
 
 use Piwik\Tracker\RequestSet;
-use Piwik\Tracker\Queue;
-use Piwik\Tracker\Queue\Handler as QueueHandler;
 use Piwik\Tracker;
-use Piwik\Tracker\BulkTracking\Handler as BulkTrackingHandler;
-use Piwik\Tracker\Handler as DefaultHandler;
+use Piwik\Tracker\Handler;
 
 // Note: if you wish to debug the Tracking API please see this documentation:
 // http://developer.piwik.org/api-reference/tracking-api#debugging-the-tracker
@@ -54,7 +51,6 @@ require_once PIWIK_INCLUDE_PATH . '/core/Plugin/ControllerAdmin.php';
 
 require_once PIWIK_INCLUDE_PATH . '/libs/upgradephp/upgrade.php';
 require_once PIWIK_INCLUDE_PATH . '/core/testMinimumPhpVersion.php';
-require_once PIWIK_INCLUDE_PATH . '/core/Tracker/Queue.php';
 require_once PIWIK_INCLUDE_PATH . '/core/Singleton.php';
 require_once PIWIK_INCLUDE_PATH . '/core/Plugin/Manager.php';
 require_once PIWIK_INCLUDE_PATH . '/core/Plugin.php';
@@ -68,21 +64,7 @@ require_once PIWIK_INCLUDE_PATH . '/core/Tracker.php';
 require_once PIWIK_INCLUDE_PATH . '/core/Config.php';
 require_once PIWIK_INCLUDE_PATH . '/core/Translate.php';
 require_once PIWIK_INCLUDE_PATH . '/core/Tracker/Cache.php';
-require_once PIWIK_INCLUDE_PATH . '/core/Tracker/Db.php';
-require_once PIWIK_INCLUDE_PATH . '/core/Tracker/Db/DbException.php';
-require_once PIWIK_INCLUDE_PATH . '/core/Tracker/IgnoreCookie.php';
-require_once PIWIK_INCLUDE_PATH . '/core/Tracker/VisitInterface.php';
-require_once PIWIK_INCLUDE_PATH . '/core/Tracker/Visit.php';
-require_once PIWIK_INCLUDE_PATH . '/core/Tracker/GoalManager.php';
-require_once PIWIK_INCLUDE_PATH . '/core/Tracker/PageUrl.php';
-require_once PIWIK_INCLUDE_PATH . '/core/Tracker/TableLogAction.php';
-require_once PIWIK_INCLUDE_PATH . '/core/Tracker/Action.php';
-require_once PIWIK_INCLUDE_PATH . '/core/Tracker/ActionPageview.php';
 require_once PIWIK_INCLUDE_PATH . '/core/Tracker/Request.php';
-require_once PIWIK_INCLUDE_PATH . '/core/Tracker/VisitExcluded.php';
-require_once PIWIK_INCLUDE_PATH . '/core/Tracker/VisitorNotFoundInDb.php';
-require_once PIWIK_INCLUDE_PATH . '/core/CacheFile.php';
-require_once PIWIK_INCLUDE_PATH . '/core/Filesystem.php';
 require_once PIWIK_INCLUDE_PATH . '/core/Cookie.php';
 
 session_cache_limiter('nocache');
@@ -91,19 +73,12 @@ set_time_limit(0);
 
 $tracker    = new Tracker();
 $requestSet = new RequestSet();
-$queue      = new Queue();
 
 ob_start();
 
 try {
-
-    if ($queue->isEnabled()) {
-        $handler = new QueueHandler();
-    } elseif ($requestSet->isUsingBulkRequest()) {
-        $handler = new BulkTrackingHandler();
-    } else {
-        $handler = new DefaultHandler();
-    }
+    \Piwik\Plugin\Manager::getInstance()->loadTrackerPlugins();
+    $handler = Handler::make();
 
     $tracker->main($handler, $requestSet);
 

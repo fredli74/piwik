@@ -70,14 +70,10 @@ class Piwik_LocalTracker extends PiwikTracker
         ob_start();
 
         $localTracker = new Tracker();
-        $request = new Tracker\Requests();
+        $request = new Tracker\RequestSet();
         $request->setRequests($requests);
 
-        if ($this->doBulkRequests) {
-            $handler = new Tracker\BulkTracking\Handler();
-        } else {
-            $handler = new Tracker\Handler();
-        }
+        $handler = Tracker\Handler::make();
 
         $localTracker->main($handler, $request);
 

@@ -9,9 +9,9 @@
 namespace Piwik\Tracker;
 
 use Piwik\Common;
+use Piwik\Piwik;
 use Piwik\Plugins\SitesManager\SiteUrls;
 use Piwik\Url;
-use Piwik\Tracker\BulkTracking\Requests as BulkTrackingRequest;
 
 class RequestSet
 {
@@ -52,7 +52,6 @@ class RequestSet
     public function setTokenAuth($tokenAuth)
     {
         $this->tokenAuth = $tokenAuth;
-        // TODO update the tokenAuth of all Request instances? in case setRequest is called before setTokenAuth
     }
 
     public function getNumberOfRequests()
@@ -66,7 +65,7 @@ class RequestSet
 
     public function getRequests()
     {
-        if (is_null($this->requests)) {
+        if (!$this->areRequestsInitialized()) {
             return array();
         }
 
@@ -82,42 +81,25 @@ class RequestSet
         return Common::getRequestVar('token_auth', false);
     }
 
+    private function areRequestsInitialized()
+    {
+        return !is_null($this->requests);
+    }
+
     public function initRequestsAndTokenAuth()
     {
-        if (!is_null($this->requests)) {
+        if ($this->areRequestsInitialized()) {
             return;
         }
 
-        $this->requests = array();
+        Piwik::postEvent('Tracker.initRequestSet', array($this));
 
-        if ($this->isUsingBulkRequest()) {
-            $bulk = new BulkTrackingRequest();
-            list($requests, $token) = $bulk->initRequestsAndTokenAuth($bulk->getRawBulkRequest());
-            if ($bulk->requiresAuthentication()) {
-                $bulk->authenticateRequests($requests);
+        if (!$this->areRequestsInitialized()) {
+            $this->requests = array();
+
+            if (!empty($_GET) || !empty($_POST)) {
+                $this->setRequests(array($_GET + $_POST));
             }
-            $this->setRequests($requests);
-            $this->setTokenAuthIfNotEmpty($token);
-            return;
-        }
-
-        if (!empty($_GET) || !empty($_POST)) {
-            $this->setRequests(array($_GET + $_POST));
-        }
-    }
-
-    public function isUsingBulkRequest()
-    {
-        $bulk    = new BulkTrackingRequest();
-        $rawData = $bulk->getRawBulkRequest();
-
-        return $bulk->isUsingBulkRequest($rawData);
-    }
-
-    private function setTokenAuthIfNotEmpty($token)
-    {
-        if (!empty($this->tokenAuth)) {
-            $this->setTokenAuth($token);
         }
     }
 

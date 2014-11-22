@@ -7,12 +7,12 @@
  *
  */
 
-namespace Piwik\Tracker\Queue;
+namespace Piwik\Plugins\QueuedTracking\Queue;
 
 use Piwik\Tracker;
 use Piwik\Tracker\RequestSet;
-use Piwik\Tracker\Queue;
-use Piwik\Tracker\Queue\Backend\Redis;
+use Piwik\Plugins\QueuedTracking\Queue;
+use Piwik\Plugins\QueuedTracking\Queue\Backend\Redis;
 
 /**
  * This class represents a page view, tracking URL, page title and generation time.

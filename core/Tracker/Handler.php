@@ -30,6 +30,21 @@ class Handler
         $this->setResponse(new Response());
     }
 
+    public static function make()
+    {
+        $handler = null;
+
+        Piwik::postEvent('Tracker.newHandler', array(&$handler));
+
+        if (is_null($handler)) {
+            $handler = new Handler();
+        } elseif (!($handler instanceof Handler)) {
+            throw new Exception("The Handler object set in the plugin must be an instance of Piwik\\Tracker\\Handler");
+        }
+
+        return $handler;
+    }
+
     public function setResponse($response)
     {
         $this->response = $response;
@@ -46,6 +61,15 @@ class Handler
     {
         foreach ($requestSet->getRequests() as $request) {
             $tracker->trackRequest($request, $requestSet->getTokenAuth());
+        }
+    }
+
+    public function initTrackingRequests(Tracker $tracker, RequestSet $requestSet)
+    {
+        try {
+            $requestSet->initRequestsAndTokenAuth();
+        } catch (Exception $e) {
+            $this->onException($tracker, $e);
         }
     }
 

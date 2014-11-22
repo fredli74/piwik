@@ -6,7 +6,7 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  *
  */
-namespace Piwik\Tracker\Queue\Backend;
+namespace Piwik\Plugins\QueuedTracking\Queue\Backend;
 
 use Piwik\Tracker;
 use Piwik\Translate;
@@ -60,7 +60,7 @@ class Redis
         }
 
         $redis = $this->getRedis();
-        return $redis->ltrim($key, $numValues, -1);
+        $redis->ltrim($key, $numValues, -1);
     }
 
     public function getNumValuesInList($key)
