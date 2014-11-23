@@ -78,7 +78,7 @@ ob_start();
 
 try {
     \Piwik\Plugin\Manager::getInstance()->loadTrackerPlugins();
-    $handler = Handler::make();
+    $handler = Handler\Factory::make();
 
     $tracker->main($handler, $requestSet);
 

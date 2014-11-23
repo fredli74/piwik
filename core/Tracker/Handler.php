@@ -12,12 +12,10 @@ namespace Piwik\Tracker;
 use Piwik\Common;
 use Piwik\Exception\InvalidRequestParameterException;
 use Piwik\Exception\UnexpectedWebsiteFoundException;
-use Piwik\Piwik;
 use Piwik\Tracker;
 use Exception;
 use Piwik\Url;
 
-// TODO create interfaces for Handler and Response
 class Handler
 {
     /**
@@ -30,21 +28,6 @@ class Handler
         $this->setResponse(new Response());
     }
 
-    public static function make()
-    {
-        $handler = null;
-
-        Piwik::postEvent('Tracker.newHandler', array(&$handler));
-
-        if (is_null($handler)) {
-            $handler = new Handler();
-        } elseif (!($handler instanceof Handler)) {
-            throw new Exception("The Handler object set in the plugin must be an instance of Piwik\\Tracker\\Handler");
-        }
-
-        return $handler;
-    }
-
     public function setResponse($response)
     {
         $this->response = $response;
@@ -52,8 +35,6 @@ class Handler
 
     public function init(Tracker $tracker, RequestSet $requestSet)
     {
-        $tracker->init();
-
         $this->response->init($tracker);
     }
 
@@ -96,7 +77,6 @@ class Handler
             $statusCode = 400;
         }
 
-        $tracker->disconnectDatabase();
         $this->response->outputException($tracker, $e, $statusCode);
 
         die(1);
@@ -105,10 +85,6 @@ class Handler
 
     public function finish(Tracker $tracker, RequestSet $requestSet)
     {
-        Piwik::postEvent('Tracker.end');
-
-        $tracker->disconnectDatabase();
-
         $this->sendResponse($tracker, $requestSet);
     }
 

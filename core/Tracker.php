@@ -85,9 +85,15 @@ class Tracker
 
     public function main(Handler $handler, RequestSet $requestSet)
     {
+        $this->init();
         $handler->init($this, $requestSet);
+
         $this->track($handler, $requestSet);
+
+        Piwik::postEvent('Tracker.end');
         $handler->finish($this, $requestSet);
+
+        $this->disconnectDatabase();
     }
 
     public function track(Handler $handler, RequestSet $requestSet)
@@ -106,6 +112,7 @@ class Tracker
                 $handler->onAllRequestsTracked($this, $requestSet);
 
             } catch (Exception $e) {
+                $this->disconnectDatabase();
                 $handler->onException($this, $e);
             }
         }
@@ -177,9 +184,9 @@ class Tracker
         return self::$db;
     }
 
-    public function disconnectDatabase()
+    private function disconnectDatabase()
     {
-        if ($this->isDatabaseConnected()) {
+        if ($this->isDatabaseConnected()) { // note: I think we do this only for the tests
             self::$db->disconnect();
             self::$db = null;
         }
@@ -251,7 +258,7 @@ class Tracker
 
             Common::printDebug("Current datetime: " . date("Y-m-d H:i:s", $request->getCurrentTimestamp()));
 
-            $visit = $this->getNewVisitObject();
+            $visit = Visit\Factory::make();
             $visit->setRequest($request);
             $visit->handle();
         }
@@ -259,37 +266,6 @@ class Tracker
         // increment successfully logged request count. make sure to do this after try-catch,
         // since an excluded visit is considered 'successfully logged'
         ++$this->countOfLoggedRequests;
-    }
-
-    /**
-     * Returns the Tracker_Visit object.
-     * This method can be overwritten to use a different Tracker_Visit object
-     *
-     * @throws Exception
-     * @return \Piwik\Tracker\Visit
-     */
-    private function getNewVisitObject()
-    {
-        $visit = null;
-
-        /**
-         * Triggered before a new **visit tracking object** is created. Subscribers to this
-         * event can force the use of a custom visit tracking object that extends from
-         * {@link Piwik\Tracker\VisitInterface}.
-         *
-         * @param \Piwik\Tracker\VisitInterface &$visit Initialized to null, but can be set to
-         *                                              a new visit object. If it isn't modified
-         *                                              Piwik uses the default class.
-         */
-        Piwik::postEvent('Tracker.makeNewVisitObject', array(&$visit));
-
-        if (is_null($visit)) {
-            $visit = new Visit();
-        } elseif (!($visit instanceof VisitInterface)) {
-            throw new Exception("The Visit object set in the plugin must implement VisitInterface");
-        }
-
-        return $visit;
     }
 
     private function loadTrackerPlugins(Request $request)
