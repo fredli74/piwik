@@ -27,7 +27,7 @@ class RequestSet
      *
      * @var string
      */
-    private $tokenAuth = false;
+    private $tokenAuth = null;
 
     private $env = array();
 
@@ -108,19 +108,19 @@ class RequestSet
         return !empty($this->requests);
     }
 
-    private function getRedirectUrl()
+    protected function getRedirectUrl()
     {
         return Common::getRequestVar('redirecturl', false, 'string');
     }
 
-    private function hasRedirectUrl()
+    protected function hasRedirectUrl()
     {
         $redirectUrl = $this->getRedirectUrl();
 
         return !empty($redirectUrl);
     }
 
-    private function getAllSiteIdsWithinRequest()
+    protected function getAllSiteIdsWithinRequest()
     {
         if (empty($this->requests)) {
             return array();
@@ -131,7 +131,7 @@ class RequestSet
             $siteIds[] = (int) $request->getIdSite();
         }
 
-        return array_unique($siteIds);
+        return array_values(array_unique($siteIds));
     }
 
     // TODO maybe move to reponse? or somewhere else? not sure where!
@@ -180,7 +180,8 @@ class RequestSet
 
         foreach ($this->getRequests() as $request) {
             $requests['requests'][] = $request->getParams();
-            // todo we need to add cdt (timestamp) but we will need permission to restore later! etc
+            // todo we maybe need to save cdt (timestamp), tokenAuth, maybe also urlref and IP as well but we need to be
+            // careful with restoring those values etc since we'd probably need to check permissions etc in some cases
         }
 
         return $requests;
@@ -202,18 +203,20 @@ class RequestSet
         $this->setEnvironment($this->getEnvironment());
     }
 
-    private function setEnvironment($env)
+    public function setEnvironment($env)
     {
         $this->env = $env;
     }
 
-    public function getEnvironment()
+    protected function getEnvironment()
     {
-        $this->env = array(
+        if (!empty($this->env)) {
+            return $this->env;
+        }
+
+        return array(
             'server' => $_SERVER
         );
-
-        return $this->env;
     }
 
     public function restoreEnvironment()
