@@ -167,7 +167,7 @@ class Manager extends Singleton
      *
      * @return array
      */
-    private function getTrackerPluginsNotToLoad()
+    public function getTrackerPluginsNotToLoad()
     {
         return $this->trackerPluginsNotToLoad;
     }

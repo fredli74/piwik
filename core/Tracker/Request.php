@@ -33,6 +33,7 @@ class Request
     protected $params;
 
     protected $isAuthenticated = null;
+    private $isEmptyRequest = false;
 
     protected $tokenAuth;
 
@@ -52,14 +53,16 @@ class Request
         $this->params = $params;
         $this->tokenAuth = $tokenAuth;
         $this->timestamp = time();
+        $this->isEmptyRequest = empty($params);
 
         // When the 'url' and referrer url parameter are not given, we might be in the 'Simple Image Tracker' mode.
         // The URL can default to the Referrer, which will be in this case
         // the URL of the page containing the Simple Image beacon
         if (empty($this->params['urlref'])
             && empty($this->params['url'])
+            && array_key_exists('HTTP_REFERER', $_SERVER)
         ) {
-            $url = @$_SERVER['HTTP_REFERER'];
+            $url = $_SERVER['HTTP_REFERER'];
             if (!empty($url)) {
                 $this->params['url'] = $url;
             }
@@ -90,6 +93,7 @@ class Request
     protected function authenticateTrackingApi($tokenAuthFromBulkRequest)
     {
         $shouldAuthenticate = TrackerConfig::getConfigValue('tracking_requests_require_authentication');
+
         if ($shouldAuthenticate) {
             $tokenAuth = $tokenAuthFromBulkRequest ? $tokenAuthFromBulkRequest : Common::getRequestVar('token_auth', false, 'string', $this->params);
             try {
@@ -144,11 +148,13 @@ class Request
     public function getDaysSinceFirstVisit()
     {
         $cookieFirstVisitTimestamp = $this->getParam('_idts');
+
         if (!$this->isTimestampValid($cookieFirstVisitTimestamp)) {
             $cookieFirstVisitTimestamp = $this->getCurrentTimestamp();
         }
 
         $daysSinceFirstVisit = round(($this->getCurrentTimestamp() - $cookieFirstVisitTimestamp) / 86400, $precision = 0);
+
         if ($daysSinceFirstVisit < 0) {
             $daysSinceFirstVisit = 0;
         }
@@ -329,9 +335,11 @@ class Request
     public function getCurrentTimestamp()
     {
         $cdt = $this->getCustomTimestamp();
-        if(!empty($cdt)) {
+
+        if (!empty($cdt)) {
             return $cdt;
         }
+
         return $this->timestamp;
     }
 
@@ -343,12 +351,15 @@ class Request
     protected function getCustomTimestamp()
     {
         $cdt = $this->getParam('cdt');
+
         if (empty($cdt)) {
             return false;
         }
+
         if (!is_numeric($cdt)) {
             $cdt = strtotime($cdt);
         }
+
         if (!$this->isTimestampValid($cdt, $this->timestamp)) {
             Common::printDebug(sprintf("Datetime %s is not valid", date("Y-m-d H:i:m", $cdt)));
             return false;
@@ -357,6 +368,7 @@ class Request
         // If timestamp in the past, token_auth is required
         $timeFromNow = $this->timestamp - $cdt;
         $isTimestampRecent = $timeFromNow < self::CUSTOM_TIMESTAMP_DOES_NOT_REQUIRE_TOKENAUTH_WHEN_NEWER_THAN;
+
         if (!$isTimestampRecent) {
             if(!$this->isAuthenticated()) {
                 Common::printDebug(sprintf("Custom timestamp is %s seconds old, requires &token_auth...", $timeFromNow));
@@ -364,6 +376,7 @@ class Request
                 return false;
             }
         }
+
         return $cdt;
     }
 
@@ -376,9 +389,10 @@ class Request
      */
     protected function isTimestampValid($time, $now = null)
     {
-        if(empty($now)) {
+        if (empty($now)) {
             $now = $this->getCurrentTimestamp();
         }
+
         return $time <= $now
             && $time > $now - 10 * 365 * 86400;
     }
@@ -410,8 +424,13 @@ class Request
 
     public function getUserAgent()
     {
-        $default = @$_SERVER['HTTP_USER_AGENT'];
-        return Common::getRequestVar('ua', is_null($default) ? false : $default, 'string', $this->params);
+        $default = false;
+
+        if (array_key_exists('HTTP_USER_AGENT', $_SERVER)) {
+            $default = $_SERVER['HTTP_USER_AGENT'];
+        }
+
+        return Common::getRequestVar('ua', $default, 'string', $this->params);
     }
 
     public function getCustomVariables($scope)
@@ -604,14 +623,9 @@ class Request
         return $plugins;
     }
 
-    public function getParamsCount()
-    {
-        return count($this->params);
-    }
-
     public function isEmptyRequest()
     {
-        return 0 === $this->getParamsCount();
+        return $this->isEmptyRequest;
     }
 
     const GENERATION_TIME_MS_MAXIMUM = 3600000; // 1 hour
@@ -656,14 +670,15 @@ class Request
     {
         $cip = $this->getParam('cip');
 
-        if(empty($cip)) {
+        if (empty($cip)) {
             return IP::getIpFromHeader();
         }
 
-        if(!$this->isAuthenticated()) {
+        if (!$this->isAuthenticated()) {
             Common::printDebug("WARN: Tracker API 'cip' was used with invalid token_auth");
             return IP::getIpFromHeader();
         }
+
         return $cip;
     }
 }

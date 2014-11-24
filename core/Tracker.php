@@ -18,7 +18,6 @@ use Piwik\Tracker\Request;
 use Piwik\Tracker\RequestSet;
 use Piwik\Tracker\TrackerConfig;
 use Piwik\Tracker\Visit;
-use Piwik\Tracker\VisitInterface;
 use Piwik\Plugin\Manager as PluginManager;
 
 /**
@@ -42,7 +41,7 @@ class Tracker
     public static $initTrackerMode = false;
 
     private $countOfLoggedRequests = 0;
-    private $isInstalled = null;
+    protected $isInstalled = null;
 
     public function isDebugModeEnabled()
     {
@@ -60,11 +59,12 @@ class Tracker
         return $record && $this->isInstalled();
     }
 
-    public function init()
+    private function init()
     {
         \Piwik\FrontController::createConfigObject();
 
         $GLOBALS['PIWIK_TRACKER_DEBUG'] = (bool) TrackerConfig::getConfigValue('debug');
+
         if ($this->isDebugModeEnabled()) {
             Error::setErrorHandler();
             ExceptionHandler::setUp();
@@ -184,7 +184,7 @@ class Tracker
         return self::$db;
     }
 
-    private function disconnectDatabase()
+    protected function disconnectDatabase()
     {
         if ($this->isDatabaseConnected()) { // note: I think we do this only for the tests
             self::$db->disconnect();
@@ -276,6 +276,8 @@ class Tracker
         $disableProvider = $request->getParam('dp');
         if (!empty($disableProvider)) {
             $pluginManager->setTrackerPluginsNotToLoad(array('Provider'));
+        } else {
+            $pluginManager->setTrackerPluginsNotToLoad(array());
         }
 
         try {

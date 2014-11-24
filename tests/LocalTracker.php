@@ -73,7 +73,7 @@ class Piwik_LocalTracker extends PiwikTracker
         $request = new Tracker\RequestSet();
         $request->setRequests($requests);
 
-        $handler = Tracker\Handler::make();
+        $handler = Tracker\Handler\Factory::make();
 
         $localTracker->main($handler, $request);
 
