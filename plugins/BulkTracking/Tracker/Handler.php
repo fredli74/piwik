@@ -43,7 +43,7 @@ class Handler extends Tracker\Handler
         parent::onException($tracker, $requestSet, $e);
     }
 
-    public function beginTransaction()
+    private function beginTransaction()
     {
         if (empty($this->transactionId)) {
             $this->transactionId = $this->getDb()->beginTransaction();
@@ -58,7 +58,7 @@ class Handler extends Tracker\Handler
         }
     }
 
-    protected function rollbackTransaction()
+    private function rollbackTransaction()
     {
         if (!empty($this->transactionId)) {
             $this->getDb()->rollback($this->transactionId);
@@ -74,7 +74,7 @@ class Handler extends Tracker\Handler
     /**
      * @return bool
      */
-    protected function isTransactionSupported()
+    private function isTransactionSupported()
     {
         return (bool) TrackerConfig::getConfigValue('bulk_requests_use_transaction');
     }

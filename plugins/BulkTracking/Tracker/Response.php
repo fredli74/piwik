@@ -24,8 +24,30 @@ class Response extends Tracker\Response
     public function outputException(Tracker $tracker, Exception $e, $statusCode)
     {
         Common::sendResponseCode($statusCode);
-        error_log(sprintf("Error in Piwik (tracker): %s", str_replace("\n", " ", $this->getMessageFromException($e))));
 
+        $this->logExceptionToErrorLog($e);
+
+        $result = $this->formatException($tracker, $e);
+
+        echo json_encode($result);
+    }
+
+    public function outputResponse(Tracker $tracker)
+    {
+        $result = $this->formatResponse($tracker);
+
+        echo json_encode($result);
+    }
+
+    public function send()
+    {
+        Common::sendHeader('Content-Type: application/json');
+
+        parent::send();
+    }
+
+    private function formatException(Tracker $tracker, Exception $e)
+    {
         // when doing bulk tracking we return JSON so the caller will know how many succeeded
         $result = array(
             'status'  => 'error',
@@ -37,24 +59,15 @@ class Response extends Tracker\Response
             $result['message'] = $this->getMessageFromException($e);
         }
 
-        Common::sendHeader('Content-Type: application/json');
-        echo json_encode($result);
+        return $result;
     }
 
-    /**
-     * Cleanup
-     */
-    public function outputResponse(Tracker $tracker)
+    private function formatResponse(Tracker $tracker)
     {
-        $result = array(
-            'status'  => 'success',
+        return array(
+            'status' => 'success',
             'tracked' => $tracker->getCountOfLoggedRequests()
         );
-
-        $this->outputAccessControlHeaders();
-
-        Common::sendHeader('Content-Type: application/json');
-        echo json_encode($result);
     }
 
 }

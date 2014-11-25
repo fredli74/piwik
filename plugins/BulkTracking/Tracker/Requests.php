@@ -96,7 +96,7 @@ class Requests
                     $params = array();
 
                     $url = @parse_url($request);
-                    if (!empty($url)) {
+                    if (!empty($url['query'])) {
                         @parse_str($url['query'], $params);
                         $validRequests[] = new Request($params, $tokenAuth);
                     }

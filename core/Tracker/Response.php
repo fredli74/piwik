@@ -31,6 +31,8 @@ class Response
 
     public function send()
     {
+        $this->outputAccessControlHeaders();
+
         ob_end_flush();
     }
 
@@ -44,7 +46,7 @@ class Response
     public function outputException(Tracker $tracker, Exception $e, $statusCode)
     {
         Common::sendResponseCode($statusCode);
-        error_log(sprintf("Error in Piwik (tracker): %s", str_replace("\n", " ", $this->getMessageFromException($e))));
+        $this->logExceptionToErrorLog($e);
 
         if ($tracker->isDebugModeEnabled()) {
             Common::sendHeader('Content-Type: text/html; charset=utf-8');
@@ -86,7 +88,7 @@ class Response
         }
     }
 
-    protected function outputAccessControlHeaders()
+    private function outputAccessControlHeaders()
     {
         $requestMethod = isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : 'GET';
 
@@ -102,24 +104,25 @@ class Response
         return ob_get_contents();
     }
 
-    protected function outputApiResponse(Tracker $tracker)
+    private function hasAlreadyPrintedOutput()
+    {
+        return strlen($this->getOutputBuffer()) > 0;
+    }
+
+    private function outputApiResponse(Tracker $tracker)
     {
         if ($tracker->isDebugModeEnabled()) {
             return;
         }
 
-        if (strlen($this->getOutputBuffer()) > 0) {
-            // If there was an error during tracker, return so errors can be flushed TODO???
+        if ($this->hasAlreadyPrintedOutput()) {
             return;
         }
-
-        $this->outputAccessControlHeaders();
 
         $request = $_GET + $_POST;
 
         if (array_key_exists('send_image', $request) && $request['send_image'] === '0') {
             Common::sendResponseCode(204);
-
             return;
         }
 
@@ -131,7 +134,7 @@ class Response
         $transGifBase64 = "R0lGODlhAQABAIAAAAAAAAAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==";
         Common::sendHeader('Content-Type: image/gif');
 
-        print(base64_decode($transGifBase64));
+        echo base64_decode($transGifBase64);
     }
 
     /**
@@ -153,6 +156,11 @@ class Response
         }
 
         return $e->getMessage();
+    }
+
+    protected function logExceptionToErrorLog(Exception $e)
+    {
+        error_log(sprintf("Error in Piwik (tracker): %s", str_replace("\n", " ", $this->getMessageFromException($e))));
     }
 
 }
