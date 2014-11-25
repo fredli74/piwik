@@ -143,7 +143,7 @@ class RequestSetTest extends IntegrationTestCase
         $_POST = array('c_i' => 'click');
 
         Piwik::addAction('Tracker.initRequestSet', function (RequestSet $requestSet) {
-            $requestSet->setRequests(array(array('idsite' => 2), array('idsite' => 3)));
+            $requestSet->setRequests(array(array('idsite' => '2'), array('idsite' => '3')));
         });
 
         $requestSet = $this->buildNewRequestSetThatIsNotInitializedYet();
@@ -152,13 +152,13 @@ class RequestSetTest extends IntegrationTestCase
 
         $requests = $requestSet->getRequests();
         $this->assertCount(2, $requests);
-        $this->assertEquals(array('idsite' => 2), $requests[0]->getParams());
-        $this->assertEquals(array('idsite' => 3), $requests[1]->getParams());
+        $this->assertEquals(array('idsite' => '2'), $requests[0]->getParams());
+        $this->assertEquals(array('idsite' => '3'), $requests[1]->getParams());
     }
 
     public function test_initRequestsAndTokednAuth_shouldIgnoreGetAndPostIfInitializedByEvent()
     {
-        $_GET  = array('idsite' => 1);
+        $_GET  = array('idsite' => '1');
         $_POST = array('c_i' => 'click');
 
         $requestSet = $this->buildNewRequestSetThatIsNotInitializedYet();

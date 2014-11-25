@@ -41,7 +41,7 @@ class Response
      * @param Exception $e
      * @param int  $statusCode eg 500
      */
-    public function outputException(Tracker $tracker, $e, $statusCode)
+    public function outputException(Tracker $tracker, Exception $e, $statusCode)
     {
         Common::sendResponseCode($statusCode);
         error_log(sprintf("Error in Piwik (tracker): %s", str_replace("\n", " ", $this->getMessageFromException($e))));
@@ -89,6 +89,7 @@ class Response
     protected function outputAccessControlHeaders()
     {
         $requestMethod = isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : 'GET';
+
         if ($requestMethod !== 'GET') {
             $origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '*';
             Common::sendHeader('Access-Control-Allow-Origin: ' . $origin);

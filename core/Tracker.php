@@ -113,7 +113,7 @@ class Tracker
 
             } catch (Exception $e) {
                 $this->disconnectDatabase();
-                $handler->onException($this, $e);
+                $handler->onException($this, $requestSet, $e);
             }
         }
     }

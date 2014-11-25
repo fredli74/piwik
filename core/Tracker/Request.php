@@ -90,22 +90,27 @@ class Request
      * This method allows to set custom IP + server time + visitor ID, when using Tracking API.
      * These two attributes can be only set by the Super User (passing token_auth).
      */
-    protected function authenticateTrackingApi($tokenAuthFromBulkRequest)
+    protected function authenticateTrackingApi($tokenAuth)
     {
         $shouldAuthenticate = TrackerConfig::getConfigValue('tracking_requests_require_authentication');
 
         if ($shouldAuthenticate) {
-            $tokenAuth = $tokenAuthFromBulkRequest ? $tokenAuthFromBulkRequest : Common::getRequestVar('token_auth', false, 'string', $this->params);
+
+            if (empty($tokenAuth)) {
+                $tokenAuth = Common::getRequestVar('token_auth', false, 'string', $this->params);
+            }
+
             try {
                 $idSite = $this->getIdSite();
-                $this->isAuthenticated = $this->authenticateSuperUserOrAdmin($tokenAuth, $idSite);
+                $this->isAuthenticated = self::authenticateSuperUserOrAdmin($tokenAuth, $idSite);
             } catch (Exception $e) {
                 $this->isAuthenticated = false;
             }
-            if (!$this->isAuthenticated) {
-                return;
+
+            if ($this->isAuthenticated) {
+                Common::printDebug("token_auth is authenticated!");
             }
-            Common::printDebug("token_auth is authenticated!");
+
         } else {
             $this->isAuthenticated = true;
             Common::printDebug("token_auth authentication not required");
@@ -133,10 +138,12 @@ class Request
         // Now checking the list of admin token_auth cached in the Tracker config file
         if (!empty($idSite) && $idSite > 0) {
             $website = Cache::getCacheWebsiteAttributes($idSite);
+
             if (array_key_exists('admin_token_auth', $website) && in_array($tokenAuth, $website['admin_token_auth'])) {
                 return true;
             }
         }
+
         Common::printDebug("WARNING! token_auth = $tokenAuth is not valid, Super User / Admin was NOT authenticated");
 
         return false;
@@ -433,6 +440,20 @@ class Request
         return Common::getRequestVar('ua', $default, 'string', $this->params);
     }
 
+    public function getCustomVariablesInVisitScope()
+    {
+        return $this->getCustomVariables('visit');
+    }
+
+    public function getCustomVariablesInPageScope()
+    {
+        return $this->getCustomVariables('page');
+    }
+
+    /**
+     * @deprecated since Piwik 2.10.0. Use Request::getCustomVariablesInPageScope() or Request::getCustomVariablesInVisitScope() instead.
+     * When we "remove" this method we will only set visibility to "private" and pass $parameter = _cvar|cvar as an argument instead of $scope
+     */
     public function getCustomVariables($scope)
     {
         if ($scope == 'visit') {
@@ -441,16 +462,19 @@ class Request
             $parameter = 'cvar';
         }
 
-        $customVar = Common::unsanitizeInputValues(Common::getRequestVar($parameter, '', 'json', $this->params));
+        $cvar      = Common::getRequestVar($parameter, '', 'json', $this->params);
+        $customVar = Common::unsanitizeInputValues($cvar);
 
         if (!is_array($customVar)) {
             return array();
         }
 
         $customVariables = array();
-        $maxCustomVars = CustomVariables::getMaxCustomVariables();
+        $maxCustomVars   = CustomVariables::getMaxCustomVariables();
+
         foreach ($customVar as $id => $keyValue) {
             $id = (int)$id;
+
             if ($id < 1
                 || $id > $maxCustomVars
                 || count($keyValue) != 2
@@ -466,10 +490,8 @@ class Request
             // We keep in the URL when Custom Variable have empty names
             // and values, as it means they can be deleted server side
 
-            $key   = self::truncateCustomVariable($keyValue[0]);
-            $value = self::truncateCustomVariable($keyValue[1]);
-            $customVariables['custom_var_k' . $id] = $key;
-            $customVariables['custom_var_v' . $id] = $value;
+            $customVariables['custom_var_k' . $id] = self::truncateCustomVariable($keyValue[0]);
+            $customVariables['custom_var_v' . $id] = self::truncateCustomVariable($keyValue[1]);
         }
 
         return $customVariables;

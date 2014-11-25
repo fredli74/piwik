@@ -59,7 +59,7 @@ class Handler extends \Piwik\Tracker\Handler
         $this->isOnAllRequestsTracked = true;
     }
 
-    public function onException(Tracker $tracker, Exception $e)
+    public function onException(Tracker $tracker, RequestSet $requestSet, Exception $e)
     {
         $this->isOnException = true;
     }

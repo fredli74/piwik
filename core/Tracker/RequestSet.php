@@ -158,7 +158,7 @@ class RequestSet
 
         foreach ($siteIds as $siteId) {
             if (empty($siteUrls[$siteId])) {
-                continue;
+                $siteUrls[$siteId] = array();
             }
 
             if (Url::isHostInUrls($host, $siteUrls[$siteId])) {

@@ -101,6 +101,7 @@ class ScheduledTasksRunner
         } else {
             Common::printDebug("-> Scheduled tasks not triggered.");
         }
+
         Common::printDebug("Next run will be from: " . date('Y-m-d H:i:s', $nextRunTime) . ' UTC');
     }
 }

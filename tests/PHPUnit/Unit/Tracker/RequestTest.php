@@ -8,8 +8,7 @@
 
 namespace Piwik\Tests\Unit\Tracker;
 
-use Piwik\Common;
-use Piwik\Config;
+use Piwik\Cookie;
 use Piwik\Network\IPUtils;
 use Piwik\Piwik;
 use Piwik\Plugins\CustomVariables\CustomVariables;
@@ -32,6 +31,11 @@ class TestRequest extends  Request {
     public function getCookiePath()
     {
         return parent::getCookiePath();
+    }
+
+    public function makeThirdPartyCookie()
+    {
+        return parent::makeThirdPartyCookie();
     }
 
     public function setIsAuthenticated()
@@ -59,7 +63,7 @@ class RequestTest extends UnitTestCase
         parent::setUp();
 
         $this->time = 1416795617;
-        $this->request = $this->buildRequest(array('idsite' => 1));
+        $this->request = $this->buildRequest(array('idsite' => '1'));
     }
 
     public function test_getCurrentTimestamp_ShouldReturnTheSetTimestamp_IfNoCustomValueGiven()
@@ -197,7 +201,6 @@ class RequestTest extends UnitTestCase
         $request->setIsAuthenticated();
         $this->assertEquals(12.0, $request->getDaysSinceFirstVisit());
     }
-
 
     public function test_getDaysSinceFirstVisit_IfTimestampIsNotValidShouldIgnoreParam()
     {
@@ -363,6 +366,56 @@ class RequestTest extends UnitTestCase
         $this->assertSame(12, $request->getParam('new_visit'));
     }
 
+    public function test_getPlugins_shouldReturnZeroForAllIfNothingGiven()
+    {
+        $expected = array_fill(0, 10, 0);
+
+        $this->assertEquals($expected, $this->request->getPlugins());
+    }
+
+    public function test_getPlugins_shouldReturnAllOneIfAllGiven()
+    {
+        $plugins = array('fla', 'java', 'dir', 'qt', 'realp', 'pdf', 'wma', 'gears', 'ag', 'cookie');
+        $request = $this->buildRequest(array_fill_keys($plugins, '1'));
+
+        $this->assertEquals(array_fill(0, 10, 1), $request->getPlugins());
+    }
+
+    public function test_getPlugins_shouldDetectSome()
+    {
+        $plugins = array('fla' => 1, 'java', 'dir' => '1', 'qt' => '0', 'realp' => 0, 'gears', 'ag' => 1, 'cookie');
+        $request = $this->buildRequest($plugins);
+
+        $expected = array(1, 0, 1, 0, 0, 0, 0, 0, 1, 0);
+        $this->assertEquals($expected, $request->getPlugins());
+    }
+
+    public function test_getPageGenerationTime_shouldDefaultToFalse_IfNotGiven()
+    {
+        $this->assertFalse($this->request->getPageGenerationTime());
+    }
+
+    public function test_getPageGenerationTime_shouldIgnoreAnyValueLowerThan0()
+    {
+        $request = $this->buildRequest(array('gt_ms' => '0'));
+        $this->assertFalse($request->getPageGenerationTime());
+
+        $request = $this->buildRequest(array('gt_ms' => '-5'));
+        $this->assertFalse($request->getPageGenerationTime());
+    }
+
+    public function test_getPageGenerationTime_shouldIgnoreAnyValueThatIsTooHigh()
+    {
+        $request = $this->buildRequest(array('gt_ms' => '3600002'));
+        $this->assertFalse($request->getPageGenerationTime());
+    }
+
+    public function test_getPageGenerationTime_shouldReturnAValidValue()
+    {
+        $request = $this->buildRequest(array('gt_ms' => '1942'));
+        $this->assertSame(1942, $request->getPageGenerationTime());
+    }
+
     public function test_truncateCustomVariable_shouldNotTruncateAnything_IfValueIsShortEnough()
     {
         $len = CustomVariables::getMaxLengthCustomVariables();
@@ -401,6 +454,40 @@ class RequestTest extends UnitTestCase
     {
         $request = $this->buildRequest(array('idsite' => '14', 'ua' => 'My Custom UA'));
         $this->assertSame('My Custom UA', $request->getUserAgent());
+    }
+
+    public function test_getBrowserLanguage_ShouldReturnACustomSetLangParam_IfOneIsSet()
+    {
+        $request = $this->buildRequest(array('lang' => 'CusToMLang'));
+        $this->assertSame('CusToMLang', $request->getBrowserLanguage());
+    }
+
+    public function test_getBrowserLanguage_ShouldReturnADefaultLanguageInCaseNoneIsSet()
+    {
+        $lang = $this->request->getBrowserLanguage();
+        $this->assertNotEmpty($lang);
+        $this->assertTrue(2 <= strlen($lang) && strlen($lang) <= 10);
+    }
+
+    public function test_makeThirdPartyCookie_ShouldReturnAnInstanceOfCookie()
+    {
+        $cookie = $this->request->makeThirdPartyCookie();
+
+        $this->assertTrue($cookie instanceof Cookie);
+    }
+
+    public function test_makeThirdPartyCookie_ShouldPreconfigureTheCookieInstance()
+    {
+        $cookie = $this->request->makeThirdPartyCookie();
+
+        $this->assertCookieContains('COOKIE _pk_uid', $cookie);
+        $this->assertCookieContains('expire: 1450750817', $cookie);
+        $this->assertCookieContains('path: ,', $cookie);
+    }
+
+    private function assertCookieContains($needle, Cookie $cookie)
+    {
+        $this->assertContains($needle, $cookie . '');
     }
 
     public function test_getIdSite()

@@ -58,7 +58,7 @@ class RequestSetTest extends UnitTestCase
 
     public function test_internalBuildRequest_ShoulBuildOneRequest()
     {
-        $request = new Request(array('idsite' => 2));
+        $request = new Request(array('idsite' => '2'));
         $request->setCurrentTimestamp($this->time);
 
         $this->assertEquals($request, $this->buildRequest(2));
@@ -396,7 +396,7 @@ class RequestSetTest extends UnitTestCase
 
     private function buildRequest($idsite)
     {
-        $request = new Request(array('idsite' => $idsite));
+        $request = new Request(array('idsite' => ('' . $idsite)));
         $request->setCurrentTimestamp($this->time);
 
         return $request;

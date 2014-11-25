@@ -21,7 +21,7 @@ class Response extends Tracker\Response
      * @param Exception $e
      * @param int  $statusCode eg 500
      */
-    public function outputException(Tracker $tracker, $e, $statusCode)
+    public function outputException(Tracker $tracker, Exception $e, $statusCode)
     {
         Common::sendResponseCode($statusCode);
         error_log(sprintf("Error in Piwik (tracker): %s", str_replace("\n", " ", $this->getMessageFromException($e))));

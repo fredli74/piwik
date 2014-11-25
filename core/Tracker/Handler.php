@@ -23,6 +23,11 @@ class Handler
      */
     private $response;
 
+    /**
+     * @var ScheduledTasksRunner
+     */
+    private $tasksRunner;
+
     public function __construct()
     {
         $this->setResponse(new Response());
@@ -41,7 +46,7 @@ class Handler
     public function process(Tracker $tracker, RequestSet $requestSet)
     {
         foreach ($requestSet->getRequests() as $request) {
-            $tracker->trackRequest($request, $requestSet->getTokenAuth());
+            $tracker->trackRequest($request);
         }
     }
 
@@ -50,7 +55,7 @@ class Handler
         try {
             $requestSet->initRequestsAndTokenAuth();
         } catch (Exception $e) {
-            $this->onException($tracker, $e);
+            $this->onException($tracker, $requestSet, $e);
         }
     }
 
@@ -60,13 +65,30 @@ class Handler
 
     public function onAllRequestsTracked(Tracker $tracker, RequestSet $requestSet)
     {
-        $tasks = new ScheduledTasksRunner();
+        $tasks = $this->getScheduledTasksRunner();
         if ($tasks->shouldRun($tracker)) {
             $tasks->runScheduledTasks();
         }
     }
 
-    public function onException(Tracker $tracker, Exception $e)
+    private function getScheduledTasksRunner()
+    {
+        if (is_null($this->tasksRunner)) {
+            $this->tasksRunner = new ScheduledTasksRunner();
+        }
+
+        return $this->tasksRunner;
+    }
+
+    /**
+     * @internal
+     */
+    public function setScheduledTasksRunner(ScheduledTasksRunner $runner)
+    {
+        $this->tasksRunner = $runner;
+    }
+
+    public function onException(Tracker $tracker, RequestSet $requestSet, Exception $e)
     {
         Common::printDebug("Exception: " . $e->getMessage());
 
@@ -78,9 +100,10 @@ class Handler
         }
 
         $this->response->outputException($tracker, $e, $statusCode);
+        $this->redirectIfNeeded($requestSet);
+        $this->response->send();
 
-        die(1);
-        exit;
+        throw $e;
     }
 
     public function finish(Tracker $tracker, RequestSet $requestSet)
@@ -94,15 +117,18 @@ class Handler
      */
     protected function sendResponse(Tracker $tracker, RequestSet $requestSet)
     {
+        $this->response->outputResponse($tracker);
+        $this->redirectIfNeeded($requestSet);
+        $this->response->send();
+    }
+
+    private function redirectIfNeeded(RequestSet $requestSet)
+    {
         $redirectUrl = $requestSet->shouldPerformRedirectToUrl();
 
         if (!empty($redirectUrl)) {
             Url::redirectToUrl($redirectUrl);
         }
-
-        $this->response->outputResponse($tracker);
-        $this->response->send();
     }
-
 
 }

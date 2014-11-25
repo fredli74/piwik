@@ -37,10 +37,10 @@ class Handler extends Tracker\Handler
         // Do not run schedule task if we are importing logs or doing custom tracking (as it could slow down)
     }
 
-    public function onException(Tracker $tracker, Exception $e)
+    public function onException(Tracker $tracker, RequestSet $requestSet, Exception $e)
     {
         $this->rollbackTransaction();
-        parent::onException($tracker, $e);
+        parent::onException($tracker, $requestSet, $e);
     }
 
     public function beginTransaction()
