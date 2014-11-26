@@ -71,7 +71,9 @@ class HandlerTest extends IntegrationTestCase
 
     public function test_finish_ShouldOutputAndSendResponse()
     {
-        $this->handler->finish($this->tracker, $this->requestSet);
+        $response = $this->handler->finish($this->tracker, $this->requestSet);
+
+        $this->assertEquals('My Dummy Content', $response);
 
         $this->assertFalse($this->response->isInit);
         $this->assertFalse($this->response->isExceptionOutput);
@@ -86,7 +88,7 @@ class HandlerTest extends IntegrationTestCase
         $this->assertFalse($this->response->isInit);
         $this->assertFalse($this->response->isResponseOutput);
         $this->assertTrue($this->response->isExceptionOutput);
-        $this->assertTrue($this->response->isSend);
+        $this->assertFalse($this->response->isSend);
     }
 
     public function test_onException_ShouldPassExceptionToResponse()
@@ -111,32 +113,12 @@ class HandlerTest extends IntegrationTestCase
         $this->assertSame(400, $this->response->statusCode);
     }
 
-    public function test_onException_ShouldRethrowExceptionToExitTrackerImmediately()
+    public function test_onException_ShouldNotRethrowAnException()
     {
         $exception = $this->buildException();
 
-        try {
-            $this->handler->onException($this->tracker, $this->requestSet, $exception);
-            $this->fail('An expected exception was not thrown');
-        } catch (Exception $e) {
-            $this->assertSame($exception, $e);
-        }
-    }
-
-    public function test_initTrackingRequests_ShouldForwardAnyExceptionToTheOnExceptionHandler()
-    {
-        $this->requestSet->enableThrowExceptionOnInit();
-
-        try {
-            $this->handler->initTrackingRequests($this->tracker, $this->requestSet);
-            $this->fail('An expected exception was not thrown');
-        } catch (Exception $e) {
-            $this->assertEquals('Init requests and token auth exception', $e->getMessage());
-        }
-
-        $this->assertTrue($this->response->isExceptionOutput);
-        $this->assertTrue($this->response->isSend);
-        $this->assertFalse($this->response->isResponseOutput);
+        $this->handler->onException($this->tracker, $this->requestSet, $exception);
+        $this->assertTrue(true);
     }
 
     public function test_onAllRequestsTracked_ShouldNeverTriggerScheduledTasksEvenIfEnabled()

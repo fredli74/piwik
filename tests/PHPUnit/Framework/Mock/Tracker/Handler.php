@@ -10,7 +10,7 @@ namespace Piwik\Tests\Framework\Mock\Tracker;
 
 use Exception;
 use Piwik\Tracker;
-use Piwik\Tracker\RequestSet;
+use Piwik\Tracker\RequestSet as TrackerRequestSet;
 
 class Handler extends \Piwik\Tracker\Handler
 {
@@ -21,11 +21,11 @@ class Handler extends \Piwik\Tracker\Handler
     public $isOnAllRequestsTracked = false;
     public $isOnException = false;
     public $isFinished = false;
+    public $output = 'My Rendered Content';
 
     private $doTriggerExceptionInProcess = false;
 
-
-    public function init(Tracker $tracker, RequestSet $requestSet)
+    public function init(Tracker $tracker, TrackerRequestSet $TrackerRequestSet)
     {
         $this->isInit = true;
     }
@@ -35,38 +35,36 @@ class Handler extends \Piwik\Tracker\Handler
         $this->doTriggerExceptionInProcess = true;
     }
 
-    public function initTrackingRequests(Tracker $tracker, RequestSet $requestSet)
-    {
-        $this->isInitTrackingRequests = true;
-    }
-
-    public function onStartTrackRequests(Tracker $tracker, RequestSet $requestSet)
+    public function onStartTrackRequests(Tracker $tracker, TrackerRequestSet $TrackerRequestSet)
     {
         $this->isOnStartTrackRequests = true;
     }
 
-    public function process(Tracker $tracker, RequestSet $requestSet)
+    public function process(Tracker $tracker, TrackerRequestSet $TrackerRequestSet)
     {
         if ($this->doTriggerExceptionInProcess) {
-            throw new Exception;
+            throw new Exception('My Exception During Process');
         }
 
         $this->isProcessed = true;
     }
 
-    public function onAllRequestsTracked(Tracker $tracker, RequestSet $requestSet)
+    public function onAllRequestsTracked(Tracker $tracker, TrackerRequestSet $TrackerRequestSet)
     {
         $this->isOnAllRequestsTracked = true;
     }
 
-    public function onException(Tracker $tracker, RequestSet $requestSet, Exception $e)
+    public function onException(Tracker $tracker, TrackerRequestSet $TrackerRequestSet, Exception $e)
     {
         $this->isOnException = true;
+        $this->output = $e->getMessage();
     }
 
-    public function finish(Tracker $tracker, RequestSet $requestSet)
+    public function finish(Tracker $tracker, TrackerRequestSet $TrackerRequestSet)
     {
         $this->isFinished = true;
+
+        return $this->output;
     }
 
 }

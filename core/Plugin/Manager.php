@@ -1026,8 +1026,9 @@ class Manager extends Singleton
      *
      * @param string $pluginName plugin name without prefix (eg. 'UserCountry')
      * @param Plugin $newPlugin
+     * @internal
      */
-    private function addLoadedPlugin($pluginName, Plugin $newPlugin)
+    public function addLoadedPlugin($pluginName, Plugin $newPlugin)
     {
         $this->loadedPlugins[$pluginName] = $newPlugin;
     }

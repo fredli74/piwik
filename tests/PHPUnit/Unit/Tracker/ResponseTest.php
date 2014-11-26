@@ -17,7 +17,7 @@ use Exception;
 
 class TestResponse extends Response {
 
-    protected function logExceptionToErrorLog()
+    protected function logExceptionToErrorLog(Exception $e)
     {
         // prevent console from outputting the error_log message
     }
@@ -32,6 +32,7 @@ class TestResponse extends Response {
  * @group BulkTracking
  * @group ResponseTest
  * @group Plugins
+ * @group Tracker
  */
 class ResponseTest extends UnitTestCase
 {
@@ -48,23 +49,22 @@ class ResponseTest extends UnitTestCase
 
     public function test_outputException_shouldAlwaysOutputApiResponse_IfDebugModeIsDisabled()
     {
-        ob_start();
-
+        $this->response->init($this->getTracker());
         $this->response->outputException($this->getTracker(), new Exception('My Custom Message'), 400);
 
-        Fixture::checkResponse(ob_get_clean());
+        Fixture::checkResponse($this->response->getOutput());
     }
 
     public function test_outputException_shouldOutputDebugMessageIfEnabled()
     {
-        ob_start();
-
         $tracker = $this->getTracker();
+        $this->response->init($tracker);
+
         $tracker->enableDebugMode();
 
         $this->response->outputException($tracker, new Exception('My Custom Message'), 400);
 
-        $content = ob_get_clean();
+        $content = $this->response->getOutput();
 
         $this->assertContains('<title>Piwik &rsaquo; Error</title>', $content);
         $this->assertContains('<p>My Custom Message', $content);
@@ -72,56 +72,64 @@ class ResponseTest extends UnitTestCase
 
     public function test_outputResponse_shouldOutputStandardApiResponse()
     {
-        ob_start();
-
+        $this->response->init($this->getTracker());
         $this->response->outputResponse($this->getTracker());
 
-        Fixture::checkResponse(ob_get_clean());
+        Fixture::checkResponse($this->response->getOutput());
     }
 
     public function test_outputResponse_shouldNotOutputApiResponse_IfDebugModeIsEnabled_AsWePrintOtherStuff()
     {
-        ob_start();
+        $this->response->init($this->getTracker());
 
         $tracker = $this->getTracker();
         $tracker->enableDebugMode();
         $this->response->outputResponse($tracker);
 
-        $this->assertEquals('', ob_get_clean());
+        $this->assertEquals('', $this->response->getOutput());
     }
 
     public function test_outputResponse_shouldNotOutputApiResponse_IfSomethingWasPrintedUpfront()
     {
-        ob_start();
+        $this->response->init($this->getTracker());
 
         echo 5;
         $this->response->outputResponse($this->getTracker());
 
-        $content = ob_get_clean();
+        $this->assertEquals('5', $this->response->getOutput());
+    }
 
-        $this->assertEquals('5', $content);
+    public function test_outputResponse_shouldNotOutputResponseTwice_IfExceptionWasAlreadyOutput()
+    {
+        $this->response->init($this->getTracker());
+
+        $this->response->outputException($this->getTracker(), new Exception('My Custom Message'), 400);
+        $this->response->outputResponse($this->getTracker());
+
+        Fixture::checkResponse($this->response->getOutput());
     }
 
     public function test_outputResponse_shouldOutputNoResponse_If204HeaderIsRequested()
     {
-        ob_start();
+        $this->response->init($this->getTracker());
 
         $_GET['send_image'] = '0';
         $this->response->outputResponse($this->getTracker());
         unset($_GET['send_image']);
 
-        $this->assertEquals('', ob_get_clean());
+        $this->assertEquals('', $this->response->getOutput());
     }
 
     public function test_outputResponse_shouldOutputPiwikMessage_InCaseNothingWasTracked()
     {
-        ob_start();
+        $this->response->init($this->getTracker());
 
         $tracker = $this->getTracker();
         $tracker->setCountOfLoggedRequests(0);
         $this->response->outputResponse($tracker);
 
-        $this->assertEquals("<a href='/'>Piwik</a> is a free/libre web <a href='http://piwik.org'>analytics</a> that lets you keep control of your data.", ob_get_clean());
+        $this->assertEquals("<a href='/'>Piwik</a> is a free/libre web <a href='http://piwik.org'>analytics</a> that lets you keep control of your data.",
+            $this->response->getOutput());
     }
 
     public function test_getMessageFromException_ShouldNotOutputAnyDetails_IfErrorContainsDbCredentials()
@@ -150,14 +158,14 @@ class ResponseTest extends UnitTestCase
 
     public function test_outputResponse_shouldOutputApiResponse_IfTrackerIsDisabled()
     {
-        ob_start();
+        $this->response->init($this->getTracker());
 
         $tracker = $this->getTracker();
         $tracker->setCountOfLoggedRequests(0);
         $tracker->disableShouldRecordStatistics();
         $this->response->outputResponse($tracker);
 
-        Fixture::checkResponse(ob_get_clean());
+        Fixture::checkResponse($this->response->getOutput());
     }
 
     private function getTracker()

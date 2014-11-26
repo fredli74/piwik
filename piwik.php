@@ -78,9 +78,13 @@ ob_start();
 
 try {
     \Piwik\Plugin\Manager::getInstance()->loadTrackerPlugins();
-    $handler = Handler\Factory::make();
 
-    $tracker->main($handler, $requestSet);
+    $handler  = Handler\Factory::make();
+    $response = $tracker->main($handler, $requestSet);
+
+    if (!is_null($response)) {
+        echo $response;
+    }
 
 } catch (Exception $e) {
     echo "Error:" . $e->getMessage();

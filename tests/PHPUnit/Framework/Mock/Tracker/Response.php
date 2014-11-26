@@ -20,14 +20,18 @@ class Response extends \Piwik\Tracker\Response
     public $isResponseOutput = false;
     public $isSend = false;
 
+    private $output = 'My Dummy Content';
+
     public function init(Tracker $tracker)
     {
         $this->isInit = true;
     }
 
-    public function send()
+    public function getOutput()
     {
         $this->isSend = true;
+
+        return $this->output;
     }
 
     public function outputException(Tracker $tracker, Exception $e, $statusCode)
@@ -35,6 +39,8 @@ class Response extends \Piwik\Tracker\Response
         $this->isExceptionOutput = true;
         $this->statusCode = $statusCode;
         $this->exception = $e;
+
+        $this->output = $e->getMessage();
     }
 
     public function outputResponse(Tracker $tracker)

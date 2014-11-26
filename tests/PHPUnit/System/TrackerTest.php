@@ -16,6 +16,7 @@ use Piwik\Tracker;
 
 /**
  * @group Core
+ * @group Tracker
  */
 class TrackerTest extends IntegrationTestCase
 {

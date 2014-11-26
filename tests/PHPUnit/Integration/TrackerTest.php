@@ -16,6 +16,7 @@ use Piwik\Tests\Framework\Fixture;
 use Piwik\Tests\Framework\Mock\Tracker\Handler;
 use Piwik\Tests\Framework\TestCase\IntegrationTestCase;
 use Piwik\Tracker;
+use Piwik\Tracker\RequestSet;
 use Piwik\Tracker\Request;
 use Piwik\Translate;
 
@@ -231,6 +232,94 @@ class TrackerTest extends IntegrationTestCase
 
         $this->assertActionEquals('test', 1);
         $this->assertActionEquals('example.com', 2);
+    }
+
+    public function test_main_shouldReturnEmptyPiwikResponse_IfNoRequestsAreGiven()
+    {
+        $requestSet = $this->getEmptyRequestSet();
+        $requestSet->setRequests(array());
+
+        $response = $this->tracker->main($this->getDefaultHandler(), $requestSet);
+
+        $expected = "<a href='/'>Piwik</a> is a free/libre web <a href='http://piwik.org'>analytics</a> that lets you keep control of your data.";
+        $this->assertEquals($expected, $response);
+    }
+
+    public function test_main_shouldReturnApiResponse_IfRequestsAreGiven()
+    {
+        $response = $this->tracker->main($this->getDefaultHandler(), $this->getRequestSetWithRequests());
+
+        Fixture::checkResponse($response);
+    }
+
+    public function test_main_shouldReturnNotReturnAnyApiResponse_IfImageIsDisabled()
+    {
+        $_GET['send_image'] = '0';
+
+        $response = $this->tracker->main($this->getDefaultHandler(), $this->getRequestSetWithRequests());
+
+        unset($_GET['send_image']);
+
+        $this->assertEquals('', $response);
+    }
+
+    public function test_main_shouldActuallyTrackNumberOfTrackedRequests()
+    {
+        $this->assertSame(0, $this->tracker->getCountOfLoggedRequests());
+
+        $this->tracker->main($this->getDefaultHandler(), $this->getRequestSetWithRequests());
+
+        $this->assertSame(2, $this->tracker->getCountOfLoggedRequests());
+    }
+
+    public function test_main_shouldNotTrackAnythingButStillReturnApiResponse_IfNotInstalledOrShouldNotRecordStats()
+    {
+        $this->tracker->setIsNotInstalled();
+        $response = $this->tracker->main($this->getDefaultHandler(), $this->getRequestSetWithRequests());
+
+        Fixture::checkResponse($response);
+        $this->assertSame(0, $this->tracker->getCountOfLoggedRequests());
+    }
+
+    public function test_main_shouldReadValuesFromGETandPOSTifNoRequestSet()
+    {
+        $_GET  = array('idsite' => '1');
+        $_POST = array('url' => 'http://localhost/post');
+
+        $requestSet = $this->getEmptyRequestSet();
+        $response   = $this->tracker->main($this->getDefaultHandler(), $requestSet);
+
+        $_GET  = array();
+        $_POST = array();
+
+        Fixture::checkResponse($response);
+        $this->assertSame(1, $this->tracker->getCountOfLoggedRequests());
+
+        $identifiedRequests = $requestSet->getRequests();
+        $this->assertCount(1, $identifiedRequests);
+        $this->assertEquals(array('idsite' => '1', 'url' => 'http://localhost/post'),
+                            $identifiedRequests[0]->getParams());
+    }
+
+    private function getDefaultHandler()
+    {
+        return new Tracker\Handler();
+    }
+
+    private function getEmptyRequestSet()
+    {
+        return new RequestSet();
+    }
+
+    private function getRequestSetWithRequests()
+    {
+        $requestSet = $this->getEmptyRequestSet();
+        $requestSet->setRequests(array(
+            $this->buildRequest(array('idsite' => '1', 'url' => 'http://localhost')),
+            $this->buildRequest(array('idsite' => '1', 'url' => 'http://localhost/test'))
+        ));
+
+        return $requestSet;
     }
 
     private function assertActionEquals($expected, $idaction)

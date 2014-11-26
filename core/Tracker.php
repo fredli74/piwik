@@ -85,15 +85,20 @@ class Tracker
 
     public function main(Handler $handler, RequestSet $requestSet)
     {
-        $this->init();
-        $handler->init($this, $requestSet);
-
-        $this->track($handler, $requestSet);
+        try {
+            $this->init();
+            $handler->init($this, $requestSet);
+            $this->track($handler, $requestSet);
+        } catch (Exception $e) {
+            $handler->onException($this, $requestSet, $e);
+        }
 
         Piwik::postEvent('Tracker.end');
-        $handler->finish($this, $requestSet);
+        $response = $handler->finish($this, $requestSet);
 
         $this->disconnectDatabase();
+
+        return $response;
     }
 
     public function track(Handler $handler, RequestSet $requestSet)
@@ -102,20 +107,36 @@ class Tracker
             return;
         }
 
-        $handler->initTrackingRequests($this, $requestSet);
+        $requestSet->initRequestsAndTokenAuth();
 
         if ($requestSet->hasRequests()) {
-            try {
-
-                $handler->onStartTrackRequests($this, $requestSet);
-                $handler->process($this, $requestSet);
-                $handler->onAllRequestsTracked($this, $requestSet);
-
-            } catch (Exception $e) {
-                $this->disconnectDatabase();
-                $handler->onException($this, $requestSet, $e);
-            }
+            $handler->onStartTrackRequests($this, $requestSet);
+            $handler->process($this, $requestSet);
+            $handler->onAllRequestsTracked($this, $requestSet);
         }
+    }
+
+    /**
+     * @param Request $request
+     * @return array
+     */
+    public function trackRequest(Request $request)
+    {
+        if ($request->isEmptyRequest()) {
+            Common::printDebug("The request is empty");
+        } else {
+            $this->loadTrackerPlugins($request);
+
+            Common::printDebug("Current datetime: " . date("Y-m-d H:i:s", $request->getCurrentTimestamp()));
+
+            $visit = Visit\Factory::make();
+            $visit->setRequest($request);
+            $visit->handle();
+        }
+
+        // increment successfully logged request count. make sure to do this after try-catch,
+        // since an excluded visit is considered 'successfully logged'
+        ++$this->countOfLoggedRequests;
     }
 
     /**
@@ -245,30 +266,7 @@ class Tracker
         \Piwik\Plugin\Manager::getInstance()->setTrackerPluginsNotToLoad($pluginsDisabled);
     }
 
-    /**
-     * @param Request $request
-     * @return array
-     */
-    public function trackRequest(Request $request)
-    {
-        if ($request->isEmptyRequest()) {
-            Common::printDebug("The request is empty");
-        } else {
-            $this->loadTrackerPlugins($request);
-
-            Common::printDebug("Current datetime: " . date("Y-m-d H:i:s", $request->getCurrentTimestamp()));
-
-            $visit = Visit\Factory::make();
-            $visit->setRequest($request);
-            $visit->handle();
-        }
-
-        // increment successfully logged request count. make sure to do this after try-catch,
-        // since an excluded visit is considered 'successfully logged'
-        ++$this->countOfLoggedRequests;
-    }
-
-    private function loadTrackerPlugins(Request $request)
+    protected function loadTrackerPlugins(Request $request)
     {
         $pluginManager = PluginManager::getInstance();
 

@@ -12,8 +12,8 @@ use Piwik\EventDispatcher;
 use Piwik\Piwik;
 use Piwik\Tracker\Request;
 use Piwik\Tests\Framework\Mock\Tracker\Handler;
+use Piwik\Tests\Framework\Mock\Tracker\RequestSet;
 use Piwik\Tests\Framework\TestCase\UnitTestCase;
-use Piwik\Tracker\RequestSet;
 use Piwik\Tracker;
 use Piwik\Translate;
 
@@ -97,6 +97,29 @@ class TrackerTest extends UnitTestCase
         $this->assertTrue($this->tracker->isDebugModeEnabled());
 
         unset($GLOBALS['PIWIK_TRACKER_DEBUG']);
+    }
+
+    public function test_main_shouldReturnFinishedResponse()
+    {
+        $response = $this->tracker->main($this->handler, $this->requestSet);
+
+        $this->assertEquals('My Rendered Content', $response);
+    }
+
+    public function test_main_shouldReturnResponse_EvenWhenThereWasAnExceptionDuringProcess()
+    {
+        $this->handler->enableTriggerExceptionInProcess();
+        $response = $this->tracker->main($this->handler, $this->requestSet);
+
+        $this->assertEquals('My Exception During Process', $response);
+    }
+
+    public function test_main_shouldReturnResponse_EvenWhenThereWasAnExceptionDuringInitRequests()
+    {
+        $this->requestSet->enableThrowExceptionOnInit();
+        $response = $this->tracker->main($this->handler, $this->requestSet);
+
+        $this->assertEquals('Init requests and token auth exception', $response);
     }
 
     public function test_main_shouldTriggerHandlerInitAndFinishEvent()
@@ -202,15 +225,14 @@ class TrackerTest extends UnitTestCase
         $this->assertFalse($this->handler->isOnException);
     }
 
-    public function test_track_shouldTriggerOnExceptionEvent_IfExceptionWasThorwn()
+    /**
+     * @expectedException \Exception
+     * @expectedException My Exception During Process
+     */
+    public function test_track_shouldNotCatchAnyException_IfExceptionWasThrown()
     {
         $this->handler->enableTriggerExceptionInProcess();
         $this->tracker->track($this->handler, $this->requestSet);
-
-        $this->assertTrue($this->handler->isOnStartTrackRequests);
-        $this->assertFalse($this->handler->isProcessed);
-        $this->assertFalse($this->handler->isOnAllRequestsTracked);
-        $this->assertTrue($this->handler->isOnException);
     }
 
     public function test_getCountOfLoggedRequests_shouldReturnZero_WhenNothingTracked()

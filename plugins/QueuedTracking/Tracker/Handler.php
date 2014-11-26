@@ -17,6 +17,9 @@ use Piwik\Tracker\RequestSet;
 use Exception;
 use Piwik\Url;
 
+/**
+ * @method Response getResponse()
+ */
 class Handler extends Tracker\Handler
 {
     public function __construct()
@@ -32,7 +35,8 @@ class Handler extends Tracker\Handler
 
         Common::printDebug('Added requests to queue');
 
-        $this->sendResponse($tracker, $requestSet);
+        $this->redirectIfNeeded($requestSet);
+        $this->getResponse()->sendResponseToBrowserDirectly();
         $this->processQueueIfNeeded($queue);
     }
 

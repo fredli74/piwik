@@ -36,50 +36,58 @@ class ResponseTest extends UnitTestCase
     public function setUp()
     {
         parent::setUp();
+
         $this->response = new TestResponse();
+        $this->response->init(new Tracker());
     }
 
     public function test_outputException_shouldOutputBulkResponse()
     {
-        ob_start();
-
-        $tracker = new Tracker();
-        $tracker->setCountOfLoggedRequests(5);
+        $tracker = $this->getTrackerWithCountedRequests();
 
         $this->response->outputException($tracker, new Exception('My Custom Message'), 400);
-
-        $content = ob_get_clean();
+        $content = $this->response->getOutput();
 
         $this->assertEquals('{"status":"error","tracked":5}', $content);
     }
 
     public function test_outputException_shouldOutputDebugMessageIfEnabled()
     {
-        ob_start();
-
-        $tracker = new Tracker();
-        $tracker->setCountOfLoggedRequests(5);
+        $tracker = $this->getTrackerWithCountedRequests();
         $tracker->enableDebugMode();
 
         $this->response->outputException($tracker, new Exception('My Custom Message'), 400);
-
-        $content = ob_get_clean();
+        $content = $this->response->getOutput();
 
         $this->assertStringStartsWith('{"status":"error","tracked":5,"message":"My Custom Message\n', $content);
     }
 
     public function test_outputResponse_shouldOutputBulkResponse()
     {
-        ob_start();
-
-        $tracker = new Tracker();
-        $tracker->setCountOfLoggedRequests(5);
+        $tracker = $this->getTrackerWithCountedRequests();
 
         $this->response->outputResponse($tracker);
-
-        $content = ob_get_clean();
+        $content = $this->response->getOutput();
 
         $this->assertEquals('{"status":"success","tracked":5}', $content);
+    }
+
+    public function test_outputResponse_shouldNotOutputAnything_IfExceptionResponseAlreadySent()
+    {
+        $tracker = $this->getTrackerWithCountedRequests();
+
+        $this->response->outputException($tracker, new Exception('My Custom Message'), 400);
+        $this->response->outputResponse($tracker);
+        $content = $this->response->getOutput();
+
+        $this->assertEquals('{"status":"error","tracked":5}', $content);
+    }
+
+    private function getTrackerWithCountedRequests()
+    {
+        $tracker = new Tracker();
+        $tracker->setCountOfLoggedRequests(5);
+        return $tracker;
     }
 
 }

@@ -21,14 +21,13 @@ class Response extends TrackerResponse
         ob_start();
     }
 
-    public function send()
+    public function getOutput()
     {
-        Common::printDebug('Queue send response');
-
-        $this->sendResponseToBrowserDirectly();
+        Common::printDebug('Queue get output');
+        return '';
     }
 
-    private function sendResponseToBrowserDirectly()
+    public function sendResponseToBrowserDirectly()
     {
         if (ob_get_level() === 0) {
             return;

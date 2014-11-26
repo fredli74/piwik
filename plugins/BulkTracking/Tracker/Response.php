@@ -34,16 +34,20 @@ class Response extends Tracker\Response
 
     public function outputResponse(Tracker $tracker)
     {
+        if ($this->hasAlreadyPrintedOutput()) {
+            return;
+        }
+
         $result = $this->formatResponse($tracker);
 
         echo json_encode($result);
     }
 
-    public function send()
+    public function getOutput()
     {
         Common::sendHeader('Content-Type: application/json');
 
-        parent::send();
+        return parent::getOutput();
     }
 
     private function formatException(Tracker $tracker, Exception $e)

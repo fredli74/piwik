@@ -50,15 +50,6 @@ class Handler
         }
     }
 
-    public function initTrackingRequests(Tracker $tracker, RequestSet $requestSet)
-    {
-        try {
-            $requestSet->initRequestsAndTokenAuth();
-        } catch (Exception $e) {
-            $this->onException($tracker, $requestSet, $e);
-        }
-    }
-
     public function onStartTrackRequests(Tracker $tracker, RequestSet $requestSet)
     {
     }
@@ -101,28 +92,21 @@ class Handler
 
         $this->response->outputException($tracker, $e, $statusCode);
         $this->redirectIfNeeded($requestSet);
-        $this->response->send();
-
-        throw $e;
     }
 
     public function finish(Tracker $tracker, RequestSet $requestSet)
     {
-        $this->sendResponse($tracker, $requestSet);
-    }
-
-    /**
-     * @param Tracker $tracker
-     * @param Tracker\RequestSet $requestSet
-     */
-    protected function sendResponse(Tracker $tracker, RequestSet $requestSet)
-    {
         $this->response->outputResponse($tracker);
         $this->redirectIfNeeded($requestSet);
-        $this->response->send();
+        return $this->response->getOutput();
     }
 
-    private function redirectIfNeeded(RequestSet $requestSet)
+    public function getResponse()
+    {
+        return $this->response;
+    }
+
+    protected function redirectIfNeeded(RequestSet $requestSet)
     {
         $redirectUrl = $requestSet->shouldPerformRedirectToUrl();
 

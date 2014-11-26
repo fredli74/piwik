@@ -14,6 +14,11 @@ use Piwik\Tracker\RequestSet;
 class BulkTracking extends \Piwik\Plugin
 {
     /**
+     * @var Requests
+     */
+    private $requests;
+
+    /**
      * @see Piwik\Plugin::getListHooksRegistered
      */
     public function getListHooksRegistered()
@@ -22,6 +27,11 @@ class BulkTracking extends \Piwik\Plugin
             'Tracker.newHandler' => 'setHandlerIfBulkRequest',
             'Tracker.initRequestSet' => 'initRequestSet',
         );
+    }
+
+    public function setRequests(Requests $requests)
+    {
+        $this->requests = $requests;
     }
 
     public function initRequestSet(RequestSet $requestSet)
@@ -65,6 +75,10 @@ class BulkTracking extends \Piwik\Plugin
 
     private function buildBulkRequests()
     {
+        if (!is_null($this->requests)) {
+            return $this->requests;
+        }
+
         return new Requests();
     }
 }

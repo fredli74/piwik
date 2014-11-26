@@ -20,6 +20,7 @@ use Piwik\Tracker\TrackerConfig;
  * @group BulkTracking
  * @group RequestsTest
  * @group Plugins
+ * @group Tracker
  */
 class RequestsTest extends IntegrationTestCase
 {

@@ -19,6 +19,15 @@ class Factory
     {
         $handler = null;
 
+        /**
+         * Triggered before a new **handler tracking object** is created. Subscribers to this
+         * event can force the use of a custom handler tracking object that extends from
+         * {@link Piwik\Tracker\Handler} and customize any tracking behavior.
+         *
+         * @param \Piwik\Tracker\Handler &$handler Initialized to null, but can be set to
+         *                                         a new handler object. If it isn't modified
+         *                                         Piwik uses the default class.
+         */
         Piwik::postEvent('Tracker.newHandler', array(&$handler));
 
         if (is_null($handler)) {

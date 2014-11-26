@@ -75,7 +75,11 @@ class Piwik_LocalTracker extends PiwikTracker
 
         $handler = Tracker\Handler\Factory::make();
 
-        $localTracker->main($handler, $request);
+        $response = $localTracker->main($handler, $request);
+
+        if (!is_null($response)) {
+            echo $response;
+        }
 
         $output = ob_get_contents();
 

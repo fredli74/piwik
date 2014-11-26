@@ -19,9 +19,12 @@ class Response
 {
     private $timer;
 
+    private $content;
+
     public function init(Tracker $tracker)
     {
-        ob_start();
+        ob_start(); // we use ob_start only because of Common::printDebug, we should actually not really use ob_start
+
         $this->timer = new Timer();
 
         if ($tracker->isDebugModeEnabled()) {
@@ -29,11 +32,15 @@ class Response
         }
     }
 
-    public function send()
+    public function getOutput()
     {
         $this->outputAccessControlHeaders();
 
-        ob_end_flush();
+        if (is_null($this->content) && ob_get_level() > 0) {
+            $this->content = ob_get_clean();
+        }
+
+        return $this->content;
     }
 
     /**
@@ -76,7 +83,9 @@ class Response
 
         Common::printDebug("End of the page.");
 
-        if ($tracker->isDebugModeEnabled() && $tracker->isDatabaseConnected()) {
+        if ($tracker->isDebugModeEnabled()
+            && $tracker->isDatabaseConnected()
+            && TrackerDb::isProfilingEnabled()) {
             $db = Tracker::getDatabase();
             $db->recordProfiling();
             Profiler::displayDbTrackerProfile($db);
@@ -104,7 +113,7 @@ class Response
         return ob_get_contents();
     }
 
-    private function hasAlreadyPrintedOutput()
+    protected function hasAlreadyPrintedOutput()
     {
         return strlen($this->getOutputBuffer()) > 0;
     }
