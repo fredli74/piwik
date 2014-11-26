@@ -48,9 +48,14 @@ class Queue
 
     public function shouldProcess()
     {
-        $numRequests = $this->backend->getNumValuesInList($this->key);
+        $numRequests = $this->getNumberOfRequestSetsInQueue();
 
         return $numRequests >= $this->numRequestsToProcessAtSameTime;
+    }
+
+    public function getNumberOfRequestSetsInQueue()
+    {
+        return $this->backend->getNumValuesInList($this->key);
     }
 
     /**

@@ -1,16 +1,1 @@
-{
- "name": "QueuedTracking",
- "version": "0.1.0",
- "description": "Queue",
- "theme": false,
- "require": {
-    "piwik": ">=2.9.1-b2"
- },
- "authors": [
-     {
-         "name": "Piwik",
-         "email": "",
-         "homepage": ""
-     }
- ]
-}
+{"name":"QueuedTracking","version":"0.1.0","description":"Queue","theme":false,"require":{"piwik":">=2.9.1"},"authors":[{"name":"Piwik","email":"","homepage":""}]}
