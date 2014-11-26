@@ -169,6 +169,24 @@ class QueueTest extends IntegrationTestCase
         $this->assertFalse($this->queue->shouldProcess());
     }
 
+    public function test_getNumberOfRequestSetsInQueue_shouldReturnNumberOfSets()
+    {
+        $this->assertNumberOfRequestSetsInQueue(0);
+
+        $this->addRequestSetsToQueue(2);
+        $this->assertNumberOfRequestSetsInQueue(2);
+
+        $this->addRequestSetsToQueue(1);
+        $this->assertNumberOfRequestSetsInQueue(3);
+
+        $this->addRequestSetsToQueue(2);
+        $this->assertNumberOfRequestSetsInQueue(5);
+
+        $this->queue->markRequestSetsAsProcessed();
+
+        $this->assertNumberOfRequestSetsInQueue(2);
+    }
+
     public function test_getRequestSetsToProcess_shouldReturnAnEmptyArrayIfQueueIsEmpty()
     {
         $this->assertEquals(array(), $this->queue->getRequestSetsToProcess());
@@ -247,6 +265,11 @@ class QueueTest extends IntegrationTestCase
         foreach ($expected as $index => $item) {
             $this->assertRequestsAreEqual($item, $actual[$index]);
         }
+    }
+
+    private function assertNumberOfRequestSetsInQueue($expectedNumRequests)
+    {
+        $this->assertSame($expectedNumRequests, $this->queue->getNumberOfRequestSetsInQueue());
     }
 
     private function assertRequestsAreEqual(RequestSet $expected, RequestSet $actual)

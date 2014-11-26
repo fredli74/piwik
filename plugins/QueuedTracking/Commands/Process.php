@@ -39,6 +39,8 @@ class Process extends ConsoleCommand
         } else {
             $output->writeln("<info>Starting to process $numRequests request sets, this can take a while</info>");
 
+            $this->setProgressCallback($processor, $output, $numRequests);
+
             try {
                 $processor->process();
                 $processor->unlock();
@@ -50,5 +52,14 @@ class Process extends ConsoleCommand
 
             $this->writeSuccessMessage($output, array('Queue processed'));
         }
+    }
+
+    private function setProgressCallback(Processor $processor, OutputInterface $output, $numRequests)
+    {
+        $processor->setOnProcessNewSetOfRequestsCallback(function (Queue $queue) use ($output, $numRequests) {
+            $output->write("\x0D");
+            $output->write($queue->getNumberOfRequestSetsInQueue() . ' left in queue      ');
+        });
+
     }
 }

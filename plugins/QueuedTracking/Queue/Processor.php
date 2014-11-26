@@ -32,6 +32,8 @@ class Processor
 
     private $lockKey = 'trackingQueueLock';
 
+    private $callbackOnProcessNewSet;
+
     public function __construct($queue)
     {
         $this->queue   = $queue;
@@ -50,6 +52,11 @@ class Processor
         $request->rememberEnvironment();
 
         while ($this->queue->shouldProcess()) {
+
+            if ($this->callbackOnProcessNewSet) {
+                call_user_func($this->callbackOnProcessNewSet, $this->queue);
+            }
+
             $numTrackedRequests = $tracker->getCountOfLoggedRequests();
 
             $queuedRequestSets = $this->queue->getRequestSetsToProcess();
@@ -69,6 +76,14 @@ class Processor
         $request->restoreEnvironment();
 
         return $tracker;
+    }
+
+    /**
+     * @param \Callable $callback
+     */
+    public function setOnProcessNewSetOfRequestsCallback($callback)
+    {
+        $this->callbackOnProcessNewSet = $callback;
     }
 
     /**

@@ -66,7 +66,7 @@ class ProcessorTest extends IntegrationTestCase
         $this->assertFalse($this->processor->acquireLock());
     }
 
-    public function test_proccess_shouldDoNothing_IfQueueIsEmpty()
+    public function test_process_shouldDoNothing_IfQueueIsEmpty()
     {
         $tracker = $this->processor->process();
 
@@ -74,7 +74,7 @@ class ProcessorTest extends IntegrationTestCase
         $this->assertNumberOfRequestSetsLeftInQueue(0);
     }
 
-    public function test_proccess_shouldDoNothing_IfLessThanRequiredRequestsAreInQueue()
+    public function test_process_shouldDoNothing_IfLessThanRequiredRequestsAreInQueue()
     {
         $this->addRequestSetsToQueue(2);
 
@@ -84,7 +84,7 @@ class ProcessorTest extends IntegrationTestCase
         $this->assertNumberOfRequestSetsLeftInQueue(2);
     }
 
-    public function test_proccess_shouldProcessOnce_IfExactNumberOfRequiredRequestsAreInQueue()
+    public function test_process_shouldProcessOnce_IfExactNumberOfRequiredRequestsAreInQueue()
     {
         $this->addRequestSetsToQueue(3);
 
@@ -94,7 +94,7 @@ class ProcessorTest extends IntegrationTestCase
         $this->assertNumberOfRequestSetsLeftInQueue(0);
     }
 
-    public function test_proccess_shouldProcessOnlyNumberOfRequiredRequests_IfThereAreMoreRequests()
+    public function test_process_shouldProcessOnlyNumberOfRequiredRequests_IfThereAreMoreRequests()
     {
         $this->addRequestSetsToQueue(5);
 
@@ -104,7 +104,7 @@ class ProcessorTest extends IntegrationTestCase
         $this->assertNumberOfRequestSetsLeftInQueue(2);
     }
 
-    public function test_proccess_shouldProcessMultipleTimes_IfThereAreManyMoreRequestsThanRequired()
+    public function test_process_shouldProcessMultipleTimes_IfThereAreManyMoreRequestsThanRequired()
     {
         $this->addRequestSetsToQueue(10);
 
@@ -114,7 +114,7 @@ class ProcessorTest extends IntegrationTestCase
         $this->assertNumberOfRequestSetsLeftInQueue(1);
     }
 
-    public function test_proccess_shouldNotProcessAnything_IfRecordStatisticsIsDisabled()
+    public function test_process_shouldNotProcessAnything_IfRecordStatisticsIsDisabled()
     {
         $this->addRequestSetsToQueue(8);
 
@@ -125,11 +125,10 @@ class ProcessorTest extends IntegrationTestCase
 
         $this->assertSame(0, $tracker->getCountOfLoggedRequests());
 
-        $this->queue->setNumberOfRequestsToProcessAtSameTime(100); // would otherwise only read max 3 requests
-        $this->assertNumberOfRequestSetsLeftInQueue(8);
+        $this->assertSame(8, $this->queue->getNumberOfRequestSetsInQueue());
     }
 
-    public function test_proccess_shouldProcessEachBulkRequestsWithinRequest()
+    public function test_process_shouldProcessEachBulkRequestsWithinRequest()
     {
         $this->queue->addRequestSet($this->buildRequestSet(1));
         $this->queue->addRequestSet($this->buildRequestSet(2)); // bulk
@@ -142,6 +141,24 @@ class ProcessorTest extends IntegrationTestCase
         $this->assertSame(7, $tracker->getCountOfLoggedRequests());
 
         $this->assertNumberOfRequestSetsLeftInQueue(2);
+    }
+
+    public function test_process_shouldCallACallbackMethod_IfSet()
+    {
+        $this->addRequestSetsToQueue(16);
+
+        $called = 0;
+        $self   = $this;
+        $queue  = $this->queue;
+
+        $this->processor->setOnProcessNewSetOfRequestsCallback(function ($passedQueue) use (&$called, $self, $queue) {
+            $self->assertSame($queue, $passedQueue);
+            $called++;
+        });
+
+        $this->processor->process();
+
+        $this->assertSame(5, $called); // 16 / 3 = 5
     }
 
     private function assertNumberOfRequestSetsLeftInQueue($numRequestsLeftInQueue)
