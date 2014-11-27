@@ -25,9 +25,9 @@ class Response
     {
         ob_start(); // we use ob_start only because of Common::printDebug, we should actually not really use ob_start
 
-        $this->timer = new Timer();
-
         if ($tracker->isDebugModeEnabled()) {
+            $this->timer = new Timer();
+
             TrackerDb::enableProfiling();
         }
     }

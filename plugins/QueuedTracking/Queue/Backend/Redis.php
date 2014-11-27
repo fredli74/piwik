@@ -8,31 +8,46 @@
  */
 namespace Piwik\Plugins\QueuedTracking\Queue\Backend;
 
+use Piwik\Log;
+use Piwik\Plugins\QueuedTracking\Queue\Backend;
 use Piwik\Tracker;
 use Piwik\Translate;
-use Piwik\Config;
 
-class Redis
+class Redis implements Backend
 {
     /**
      * @var \Redis
      */
     private $redis;
-    private static $testMode = false;
+    private $host;
+    private $port;
+    private $timeout;
+    private $password;
 
-    public function checkIsInstalled()
+    /**
+     * @var int
+     */
+    private $database;
+
+    public function testConnection()
     {
-        if (!class_exists('\Redis', false)) {
-            throw new \Exception('Redis is not installed. Please check out https://github.com/nicolasff/phpredis');
+        try {
+            $this->connectIfNeeded();
+            return 'TEST' === $this->redis->echo('TEST');
+
+        } catch (\Exception $e) {
+            Log::debug($e->getMessage());
         }
+
+        return false;
     }
 
     public function appendValuesToList($key, $values)
     {
-        $redis = $this->getRedis();
+        $this->connectIfNeeded();
 
         foreach ($values as $value) {
-            $redis->rPush($key, $value);
+            $this->redis->rPush($key, $value);
         }
 
         // usually we would simply do call_user_func_array(array($redis, 'rPush'), $values); as rpush supports multiple values
@@ -47,8 +62,8 @@ class Redis
             return array();
         }
 
-        $redis  = $this->getRedis();
-        $values = $redis->lRange($key, 0, $numValues - 1);
+        $this->connectIfNeeded();
+        $values = $this->redis->lRange($key, 0, $numValues - 1);
 
         return $values;
     }
@@ -59,74 +74,97 @@ class Redis
             return;
         }
 
-        $redis = $this->getRedis();
-        $redis->ltrim($key, $numValues, -1);
+        $this->connectIfNeeded();
+        $this->redis->ltrim($key, $numValues, -1);
     }
 
     public function getNumValuesInList($key)
     {
-        $redis = $this->getRedis();
+        $this->connectIfNeeded();
 
-        return $redis->lLen($key);
+        return $this->redis->lLen($key);
     }
 
     public function setIfNotExists($key, $value)
     {
-        $redis  = $this->getRedis();
-        $wasSet = $redis->setnx($key, $value);
+        $this->connectIfNeeded();
+        $wasSet = $this->redis->setnx($key, $value);
 
         return $wasSet;
     }
 
     public function delete($key)
     {
-        $redis = $this->getRedis();
+        $this->connectIfNeeded();
 
-        return $redis->del($key) > 0;
+        return $this->redis->del($key) > 0;
     }
 
     public function expire($key, $ttlInSeconds)
     {
-        $redis = $this->getRedis();
+        $this->connectIfNeeded();
 
-        return (bool) $redis->expire($key, $ttlInSeconds);
+        return (bool) $this->redis->expire($key, $ttlInSeconds);
     }
 
+    /**
+     * @internal
+     */
     public function flushAll()
     {
-        $this->getRedis()->flushAll();
+        $this->connectIfNeeded();
+        $this->redis->flushAll();
     }
 
-    private function getRedis()
+    private function connectIfNeeded()
     {
-        if (is_null($this->redis)) {
-            $config = $this->getConfig();
+        if (!$this->isConnected()) {
+            $this->connect();
+        }
+    }
 
-            $this->redis = new \Redis();
-            $this->redis->connect($config['host'], $config['port'], $config['timeout']);
+    private function connect()
+    {
+        $this->redis = new \Redis();
+        $success = $this->redis->connect($this->host, $this->port, $this->timeout);
 
-            if (self::$testMode) {
-                $this->redis->select(2);
-            }
+        if ($success && !empty($this->password)) {
+            $success = $this->redis->auth($this->password);
         }
 
-        return $this->redis;
+        if (!empty($this->database)) {
+            $this->redis->select($this->database);
+        }
+
+        return $success;
     }
 
-    private function getConfig()
+    public function setConfig($host, $port, $timeout, $password)
     {
-        return Config::getInstance()->Redis;
+        $this->disconnect();
+
+        $this->host = $host;
+        $this->port = $port;
+        $this->timeout  = $timeout;
+        $this->password = $password;
     }
 
-    public static function enableTestMode()
+    private function disconnect()
     {
-        self::$testMode = true;
+        if ($this->isConnected()) {
+            $this->redis->close();
+        }
+
+        $this->redis = null;
     }
 
-    public static function clearDatabase()
+    private function isConnected()
     {
-        self::enableTestMode(); // prevent deletion of production db accidentally
-        $redis = new Redis();
-        $redis->flushAll();
+        return !is_null($this->redis);
+    }
+
+    public function setDatabase($database)
+    {
+        $this->database = $database;
     }
 }

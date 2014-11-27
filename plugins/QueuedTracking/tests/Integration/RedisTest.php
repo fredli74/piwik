@@ -8,8 +8,8 @@
 
 namespace Piwik\Plugins\QueuedTracking\tests\Integration;
 
-use Piwik\Tests\Framework\TestCase\IntegrationTestCase;
 use Piwik\Plugins\QueuedTracking\Queue\Backend\Redis;
+use Piwik\Plugins\QueuedTracking\tests\Framework\TestCase\IntegrationTestCase;
 use Piwik\Translate;
 
 /**
@@ -33,8 +33,7 @@ class RedisTest extends IntegrationTestCase
     {
         parent::setUp();
 
-        Redis::enableTestMode();
-        $this->redis = new Redis();
+        $this->redis = $this->createRedisBackend();
 
         if (!$this->hasDependencies()) {
             $this->redis->delete($this->emptyListKey);
@@ -42,17 +41,6 @@ class RedisTest extends IntegrationTestCase
             $this->redis->delete($this->key);
             $this->redis->appendValuesToList($this->listKey, array(10, 299, '34'));
         }
-    }
-
-    public static function tearDownAfterClass()
-    {
-        Redis::clearDatabase();
-        parent::tearDownAfterClass();
-    }
-
-    public function test_makeSureRedisIsInstalled_shouldNotThrowAnException()
-    {
-        $this->redis->checkIsInstalled();
     }
 
     public function test_appendValuesToList_shouldNotAddAnything_IfNoValuesAreGiven()
@@ -225,5 +213,26 @@ class RedisTest extends IntegrationTestCase
 
         $this->assertEquals($expectedValues, $verify);
     }
+
+    public function test_checkConnectionDetails_shouldFailIfServerIsWrong()
+    {
+        $this->redis->setConfig('192.168.123.234', 6379, 0.2, null);
+        $success = $this->redis->testConnection();
+        $this->assertFalse($success);
+    }
+
+    public function test_checkConnectionDetails_shouldFailIfPortIsWrong()
+    {
+        $this->redis->setConfig('127.0.0.1', 6370, 0.2, null);
+        $success = $this->redis->testConnection();
+        $this->assertFalse($success);
+    }
+
+    public function test_checkConnectionDetails_shouldNotFailIfConnectionDataIsCorrect()
+    {
+        $success = $this->createRedisBackend()->testConnection();
+        $this->assertTrue($success);
+    }
+
 
 }

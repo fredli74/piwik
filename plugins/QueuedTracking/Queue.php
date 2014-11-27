@@ -8,6 +8,7 @@
  */
 namespace Piwik\Plugins\QueuedTracking;
 
+use Piwik\Plugins\QueuedTracking\Queue\Backend;
 use Piwik\Tracker\RequestSet;
 use Piwik\Tracker\TrackerConfig;
 use Piwik\Tracker;
@@ -22,16 +23,21 @@ class Queue
     private $backend;
 
     private $key = 'trackingQueueV1';
-    private $numRequestsToProcessAtSameTime = 50;
+    private $numRequestsToProcessInBulk = 50;
 
-    public function __construct()
+    public function __construct(Backend $backend)
     {
-        $this->backend = new Redis();
+        $this->backend = $backend;
     }
 
     public function setNumberOfRequestsToProcessAtSameTime($numRequests)
     {
-        $this->numRequestsToProcessAtSameTime = $numRequests;
+        $this->numRequestsToProcessInBulk = $numRequests;
+    }
+
+    public function getNumberOfRequestsToProcessAtSameTime()
+    {
+        return $this->numRequestsToProcessInBulk;
     }
 
     public function addRequestSet(RequestSet $requests)
@@ -50,7 +56,7 @@ class Queue
     {
         $numRequests = $this->getNumberOfRequestSetsInQueue();
 
-        return $numRequests >= $this->numRequestsToProcessAtSameTime;
+        return $numRequests >= $this->numRequestsToProcessInBulk;
     }
 
     public function getNumberOfRequestSetsInQueue()
@@ -63,7 +69,7 @@ class Queue
      */
     public function getRequestSetsToProcess()
     {
-        $values = $this->backend->getFirstXValuesFromList($this->key, $this->numRequestsToProcessAtSameTime);
+        $values = $this->backend->getFirstXValuesFromList($this->key, $this->numRequestsToProcessInBulk);
 
         $requests = array();
         foreach ($values as $value) {
@@ -79,17 +85,6 @@ class Queue
 
     public function markRequestSetsAsProcessed()
     {
-        $this->backend->removeFirstXValuesFromList($this->key, $this->numRequestsToProcessAtSameTime);
-    }
-
-    public function isEnabled()
-    {
-        $enabled = TrackerConfig::getConfigValue('queue_enabled');
-
-        if ($enabled) {
-            $this->backend->checkIsInstalled(); // todo this should not really be done here
-        }
-
-        return (bool) $enabled;
+        $this->backend->removeFirstXValuesFromList($this->key, $this->numRequestsToProcessInBulk);
     }
 }

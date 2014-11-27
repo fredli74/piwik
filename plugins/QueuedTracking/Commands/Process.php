@@ -12,6 +12,7 @@ namespace Piwik\Plugins\QueuedTracking\Commands;
 use Piwik\Plugin\ConsoleCommand;
 use Piwik\Plugins\QueuedTracking\Queue;
 use Piwik\Plugins\QueuedTracking\Queue\Processor;
+use Piwik\Plugins\QueuedTracking\Settings;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -27,8 +28,9 @@ class Process extends ConsoleCommand
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $queue     = new Queue();
-        $processor = new Processor($queue);
+        $backend   = Queue\Factory::makeBackend();
+        $queue     = Queue\Factory::makeQueue($backend);
+        $processor = new Processor($queue, $backend);
 
         $numRequests = $queue->getNumberOfRequestSetsInQueue();
 

@@ -14,25 +14,9 @@ use Piwik\Tracker\Response as TrackerResponse;
 
 class Response extends TrackerResponse
 {
-    public function init(Tracker $tracker)
-    {
-        Common::printDebug('Queue init');
-
-        ob_start();
-    }
-
-    public function getOutput()
-    {
-        Common::printDebug('Queue get output');
-        return '';
-    }
 
     public function sendResponseToBrowserDirectly()
     {
-        if (ob_get_level() === 0) {
-            return;
-        }
-
         while (ob_get_level() > 1) {
             ob_end_flush();
         }

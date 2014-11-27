@@ -16,21 +16,17 @@ class SystemCheck
 {
     public function checkRedisIsInstalled()
     {
-        if (!class_exists('\Redis', false)) {
-            throw new \Exception('Redis is not installed. Please check out https://github.com/nicolasff/phpredis');
-        }
-
-        if (!extension_loaded('redis')) {
-            throw new \Exception('The phpredis extension is needed in order to activate the queue. Please check out https://github.com/nicolasff/phpredis');
+        if (!class_exists('\Redis', false) || !extension_loaded('redis')) {
+            throw new \Exception('The phpredis extension is needed. Please check out https://github.com/nicolasff/phpredis');
         }
     }
 
-    public function checkConnectionDetails($host, $port, $timeout)
+    public function checkConnectionDetails($host, $port, $timeout, $password)
     {
         $redis = new Redis();
-        $redis->setConfig($host, $port, $timeout);
+        $redis->setConfig($host, $port, $timeout, $password);
 
-        if (!$redis->connect()) {
+        if (!$redis->testConnection()) {
             throw new \Exception('Connection to Redis failed. Please verify Redis host and port');
         };
     }

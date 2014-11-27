@@ -8,7 +8,7 @@
 
 namespace Piwik\Plugins\QueuedTracking\tests\Integration;
 
-use Piwik\Tests\Framework\TestCase\IntegrationTestCase;
+use Piwik\Plugins\QueuedTracking\tests\Framework\TestCase\IntegrationTestCase;
 use Piwik\Tracker\RequestSet;
 use Piwik\Tracker\TrackerConfig;
 use Piwik\Tracker;
@@ -37,21 +37,26 @@ class ProcessorTest extends IntegrationTestCase
      */
     private $queue;
 
+    /**
+     * @var Redis
+     */
+    private $redis;
+
     public function setUp()
     {
         parent::setUp();
 
-        Redis::enableTestMode();
+        $this->redis = $this->createRedisBackend();
 
-        $this->queue = new Queue();
+        $this->queue = new Queue($this->redis);
         $this->queue->setNumberOfRequestsToProcessAtSameTime(3);
 
-        $this->processor = new Processor($this->queue);
+        $this->processor = new Processor($this->queue, $this->redis);
     }
 
     public function tearDown()
     {
-        Redis::clearDatabase();
+        $this->clearRedisDb();
         parent::tearDown();
     }
 

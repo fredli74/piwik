@@ -18,16 +18,18 @@ class QueuedTracking extends \Piwik\Plugin
     public function getListHooksRegistered()
     {
         return array(
-            'Tracker.newHandler' => 'replaceHandlerIfQueueIsEnabled'
+            'Tracker.newHandler' => 'replaceHandlerIfQueueIsEnabled',
+            'Tracker.initHandler' => 'replaceHandlerIfQueueIsEnabled',
         );
     }
 
     public function replaceHandlerIfQueueIsEnabled(&$handler)
     {
-        $queue = new Queue();
+        $settings = Queue\Factory::getSettings();
 
-        if ($queue->isEnabled()) {
+        if ($settings->queueEnabled->getValue()) {
             $handler = new Handler();
         }
     }
+
 }

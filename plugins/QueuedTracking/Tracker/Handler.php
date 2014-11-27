@@ -29,21 +29,28 @@ class Handler extends Tracker\Handler
 
     public function process(Tracker $tracker, RequestSet $requestSet)
     {
-        $queue = new Queue();
+        $backend = Queue\Factory::makeBackend();
+        $queue   = Queue\Factory::makeQueue($backend);
+
         $queue->addRequestSet($requestSet);
         $tracker->setCountOfLoggedRequests($requestSet->getNumberOfRequests());
 
         Common::printDebug('Added requests to queue');
 
         $this->redirectIfNeeded($requestSet);
+        $this->getResponse()->outputResponse($tracker);
         $this->getResponse()->sendResponseToBrowserDirectly();
-        $this->processQueueIfNeeded($queue);
+
+        $settings = Queue\Factory::getSettings();
+        if ($settings->processDuringTrackingRequest->getValue()) {
+            $this->processQueueIfNeeded($queue, $backend);
+        }
     }
 
-    private function processQueueIfNeeded(Queue $queue)
+    private function processQueueIfNeeded(Queue $queue, Queue\Backend\Redis $redis)
     {
         if ($queue->shouldProcess()) {
-            $this->processIfNotLocked(new Processor($queue));
+            $this->processIfNotLocked(new Processor($queue, $redis));
         }
     }
 

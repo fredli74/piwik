@@ -8,12 +8,10 @@
 
 namespace Piwik\Plugins\QueuedTracking\tests\Integration;
 
-use Piwik\Tracker\TrackerConfig;
 use Piwik\Tracker;
-use Piwik\Plugins\QueuedTracking\Queue\Backend\Redis;
 use Piwik\Plugins\QueuedTracking\Queue;
 use Piwik\Translate;
-use Piwik\Tests\Framework\TestCase\IntegrationTestCase;
+use Piwik\Plugins\QueuedTracking\tests\Framework\TestCase\IntegrationTestCase;
 use Piwik\Tracker\RequestSet;
 use Piwik\Tracker\Request;
 
@@ -35,14 +33,14 @@ class QueueTest extends IntegrationTestCase
     {
         parent::setUp();
 
-        Redis::enableTestMode();
-        $this->queue = new Queue();
+        $redis = $this->createRedisBackend();
+        $this->queue = new Queue($redis);
         $this->queue->setNumberOfRequestsToProcessAtSameTime(3);
     }
 
     public function tearDown()
     {
-        Redis::clearDatabase();
+        $this->clearRedisDb();
         parent::tearDown();
     }
 
@@ -84,21 +82,6 @@ class QueueTest extends IntegrationTestCase
             $this->buildRequestSet(1, 4),
             $this->buildRequestSet(1, 5),
         ), $this->buildManyRequestSets(5));
-    }
-
-    public function test_isEnabled_ShouldReturnFalse_IfDisabled_WhichItShouldBeByDefault()
-    {
-        $this->assertFalse($this->queue->isEnabled());
-    }
-
-    public function test_isEnabled_ShouldReturnTrue_IfEnabled()
-    {
-        $value = TrackerConfig::getConfigValue('queue_enabled');
-        TrackerConfig::setConfigValue('queue_enabled', 1);
-
-        $this->assertTrue($this->queue->isEnabled());
-
-        TrackerConfig::setConfigValue('queue_enabled', $value);
     }
 
     public function test_addRequestSet_ShouldNotAddAnything_IfNoRequestsGiven()

@@ -34,10 +34,10 @@ class Processor
 
     private $callbackOnProcessNewSet;
 
-    public function __construct($queue)
+    public function __construct(Queue $queue, Backend $backend)
     {
         $this->queue   = $queue;
-        $this->backend = new Redis();
+        $this->backend = $backend;
     }
 
     public function process()
@@ -176,7 +176,7 @@ class Processor
 
     private function expireLock($ttlInSeconds)
     {
-        return $this->backend->expire($this->lockKey, $ttlInSeconds);
+        $this->backend->expire($this->lockKey, $ttlInSeconds);
     }
 
 }

@@ -26,6 +26,9 @@ class Settings extends \Piwik\Plugin\Settings
     public $redisTimeout;
 
     /** @var SystemSetting */
+    public $redisPassword;
+
+    /** @var SystemSetting */
     public $queueEnabled;
 
     /** @var SystemSetting */
@@ -41,6 +44,7 @@ class Settings extends \Piwik\Plugin\Settings
         $this->createRedisHostSetting();
         $this->createRedisPortSetting();
         $this->createRedisTimeoutSetting();
+        $this->createRedisPasswordSetting();
         $this->createQueueEnabledSetting();
         $this->createNumRequestsToProcessSetting();
         $this->createProcessInTrackingRequestSetting();
@@ -48,11 +52,11 @@ class Settings extends \Piwik\Plugin\Settings
 
     private function createRedisHostSetting()
     {
-        $this->redisHost        = new SystemSetting('redisHost', 'Redis host');
+        $this->redisHost = new SystemSetting('redisHost', 'Redis host');
         $this->redisHost->readableByCurrentUser = true;
         $this->redisHost->type  = static::TYPE_STRING;
         $this->redisHost->uiControlType = static::CONTROL_TEXT;
-        $this->redisHost->uiControlAttributes = array('size' => 300, 'style' => 'max-width:250px;');
+        $this->redisHost->uiControlAttributes = array('size' => 300);
         $this->redisHost->description   = 'Host of Redis server';
         $this->redisHost->defaultValue  = '127.0.0.1';
         $this->redisHost->inlineHelp = 'Max 300 characters are allowed.';
@@ -94,13 +98,13 @@ class Settings extends \Piwik\Plugin\Settings
         $this->redisTimeout->readableByCurrentUser = true;
         $this->redisTimeout->type  = static::TYPE_FLOAT;
         $this->redisTimeout->uiControlType = static::CONTROL_TEXT;
-        $this->redisTimeout->uiControlAttributes = array('size' => 7);
+        $this->redisTimeout->uiControlAttributes = array('size' => 5);
         $this->redisTimeout->description   = 'Redis connection timeout in seconds';
         $this->redisTimeout->inlineHelp    = '"0.0" meaning unlimited.';
         $this->redisTimeout->defaultValue  = '0.0';
         $this->redisTimeout->validate = function ($value) {
-            if (strlen($value) > 7) {
-                throw new \Exception('Max 7 characters are allowed');
+            if (strlen($value) > 5) {
+                throw new \Exception('Max 5 characters are allowed');
             }
 
             if (!is_numeric($value)) {
@@ -121,6 +125,25 @@ class Settings extends \Piwik\Plugin\Settings
         $this->addSetting($this->redisTimeout);
     }
 
+    private function createRedisPasswordSetting()
+    {
+        $this->redisPassword = new SystemSetting('redisPassword', 'Redis password');
+        $this->redisPassword->readableByCurrentUser = true;
+        $this->redisPassword->type  = static::TYPE_STRING;
+        $this->redisPassword->uiControlType = static::CONTROL_PASSWORD;
+        $this->redisPassword->uiControlAttributes = array('size' => 100);
+        $this->redisPassword->description   = 'An optional password for your Redis instance';
+        $this->redisPassword->inlineHelp    = 'Redis can be instructed to require a password before allowing clients to execute commands.';
+        $this->redisPassword->defaultValue  = '';
+        $this->redisPassword->validate = function ($value) {
+            if (strlen($value) > 100) {
+                throw new \Exception('Max 100 characters are allowed');
+            }
+        };
+
+        $this->addSetting($this->redisPassword);
+    }
+
     private function createQueueEnabledSetting()
     {
         $self = $this;
@@ -135,9 +158,14 @@ class Settings extends \Piwik\Plugin\Settings
             $value = (bool) $value;
 
             if ($value) {
+                $host = $self->redisHost->getValue();
+                $port = $self->redisPort->getValue();
+                $timeout = $self->redisTimeout->getValue();
+                $password = $self->redisPassword->getValue();
+
                 $systemCheck = new SystemCheck();
                 $systemCheck->checkRedisIsInstalled();
-                $systemCheck->checkConnectionDetails($self->redisHost->getValue(), $self->redisPort->getValue(), $self->redisTimeout->getValue());
+                $systemCheck->checkConnectionDetails($host, $port, $timeout, $password);
             }
         };
 
@@ -152,11 +180,12 @@ class Settings extends \Piwik\Plugin\Settings
         $this->numRequestsToProcess->uiControlType = static::CONTROL_TEXT;
         $this->numRequestsToProcess->uiControlAttributes = array('size' => 3);
         $this->numRequestsToProcess->description     = 'Defines how many requests will be picked out of the queue and processed at once';
-        $this->numRequestsToProcess->inlineHelp      = 'Enter a number which is >= 1.';
+        $this->numRequestsToProcess->inlineHelp      = 'Enter a number which is >= 1. In case you set the value to 1 it is recommend to disable "Process during tracking request" and use a console command instead to process the requests. You might want to adjust this number eg to the number of tracking requests you get per 10 seconds on average.';
         $this->numRequestsToProcess->defaultValue    = '50';
         $this->numRequestsToProcess->validate = function ($value, $setting) {
-            if ($value < 1) {
-                throw new \Exception('Value is invalid');
+
+            if ((int) $value < 1) {
+                throw new \Exception('Value is invalid ' . $value);
             }
 
             if (!is_numeric($value)) {
