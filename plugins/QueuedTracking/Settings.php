@@ -62,7 +62,7 @@ class Settings extends \Piwik\Plugin\Settings
         $this->redisHost->inlineHelp = 'Max 300 characters are allowed.';
         $this->redisHost->validate = function ($value) {
             if (strlen($value) > 300) {
-                throw new \Exception('Max 300 characters allowed.');
+                throw new \Exception('Max 300 characters allowed');
             }
         };
 
@@ -103,12 +103,13 @@ class Settings extends \Piwik\Plugin\Settings
         $this->redisTimeout->inlineHelp = '"0.0" meaning unlimited. Can be a float eg "2.5" for a connection timeout of 2.5 seconds.';
         $this->redisTimeout->defaultValue = '0.1';
         $this->redisTimeout->validate = function ($value) {
-            if (strlen($value) > 5) {
-                throw new \Exception('Max 5 characters allowed');
-            }
 
             if (!is_numeric($value)) {
-                throw new \Exception('Timeout should be numeric, eg "0.0"');
+                throw new \Exception('Timeout should be numeric, eg "0.1"');
+            }
+
+            if (strlen($value) > 5) {
+                throw new \Exception('Max 5 characters allowed');
             }
         };
 
@@ -171,7 +172,7 @@ class Settings extends \Piwik\Plugin\Settings
         $this->numRequestsToProcess->uiControlAttributes = array('size' => 3);
         $this->numRequestsToProcess->description = 'Number of requests needed to start processing queue';
         $this->numRequestsToProcess->inlineHelp = 'Defines how many requests will be picked out of the queue and processed at once. Enter a number which is >= 1. You might want to adjust this number eg to the number of tracking requests you get per 10 seconds on average.';
-        $this->numRequestsToProcess->defaultValue = '50';
+        $this->numRequestsToProcess->defaultValue = 50;
         $this->numRequestsToProcess->validate = function ($value, $setting) {
 
             if (!is_numeric($value)) {

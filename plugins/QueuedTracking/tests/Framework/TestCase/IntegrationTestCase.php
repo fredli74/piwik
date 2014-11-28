@@ -18,6 +18,7 @@ class IntegrationTestCase extends \Piwik\Tests\Framework\TestCase\IntegrationTes
 {
     public static function tearDownAfterClass()
     {
+        Queue\Factory::clearSettings();
         parent::tearDownAfterClass();
     }
 

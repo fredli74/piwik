@@ -165,6 +165,6 @@ class Redis implements Backend
 
     public function setDatabase($database)
     {
-        $this->database = $database;
+        $this->database = (int) $database;
     }
 }

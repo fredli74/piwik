@@ -11,6 +11,7 @@ namespace Piwik\Plugins\QueuedTracking\Queue;
 
 use Piwik\Plugins\QueuedTracking\Queue;
 use Piwik\Plugins\QueuedTracking\Settings;
+use Piwik\Tracker\SettingsStorage;
 
 /**
  * This class represents a page view, tracking URL, page title and generation time.
@@ -33,6 +34,15 @@ class Factory
         }
 
         return self::$settings;
+    }
+
+    /**
+     * @internal
+     */
+    public static function clearSettings()
+    {
+        self::$settings = null;
+        SettingsStorage::clearCache();
     }
 
     public static function makeQueue(Backend $backend)

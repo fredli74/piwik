@@ -28,6 +28,10 @@ class QueuedTracking extends \Piwik\Plugin
 
         if ($settings->queueEnabled->getValue()) {
             $handler = new Handler();
+
+            if ($settings->processDuringTrackingRequest->getValue()) {
+                $handler->enableProcessingInTrackerMode();
+            }
         }
     }
 
