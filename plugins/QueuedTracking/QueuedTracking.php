@@ -19,7 +19,6 @@ class QueuedTracking extends \Piwik\Plugin
     {
         return array(
             'Tracker.newHandler' => 'replaceHandlerIfQueueIsEnabled',
-            'Tracker.initHandler' => 'replaceHandlerIfQueueIsEnabled',
         );
     }
 

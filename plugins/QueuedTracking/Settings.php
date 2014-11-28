@@ -54,15 +54,15 @@ class Settings extends \Piwik\Plugin\Settings
     {
         $this->redisHost = new SystemSetting('redisHost', 'Redis host');
         $this->redisHost->readableByCurrentUser = true;
-        $this->redisHost->type  = static::TYPE_STRING;
+        $this->redisHost->type = static::TYPE_STRING;
         $this->redisHost->uiControlType = static::CONTROL_TEXT;
         $this->redisHost->uiControlAttributes = array('size' => 300);
-        $this->redisHost->description   = 'Host of Redis server';
-        $this->redisHost->defaultValue  = '127.0.0.1';
+        $this->redisHost->description = 'Remote host of the Redis server';
+        $this->redisHost->defaultValue = '127.0.0.1';
         $this->redisHost->inlineHelp = 'Max 300 characters are allowed.';
         $this->redisHost->validate = function ($value) {
             if (strlen($value) > 300) {
-                throw new \Exception('Redis host should be max 300 characters long');
+                throw new \Exception('Max 300 characters allowed.');
             }
         };
 
@@ -73,11 +73,11 @@ class Settings extends \Piwik\Plugin\Settings
     {
         $this->redisPort = new SystemSetting('redisPort', 'Redis port');
         $this->redisPort->readableByCurrentUser = true;
-        $this->redisPort->type  = static::TYPE_INT;
+        $this->redisPort->type = static::TYPE_INT;
         $this->redisPort->uiControlType = static::CONTROL_TEXT;
         $this->redisPort->uiControlAttributes = array('size' => 5);
-        $this->redisPort->description   = 'Port to Redis server';
-        $this->redisPort->defaultValue  = '6379';
+        $this->redisPort->description = 'Port the Redis server is running on';
+        $this->redisPort->defaultValue = '6379';
         $this->redisPort->inlineHelp = 'Value should be between 1 and 65535.';
         $this->redisPort->validate = function ($value) {
             if ($value < 1) {
@@ -96,31 +96,21 @@ class Settings extends \Piwik\Plugin\Settings
     {
         $this->redisTimeout = new SystemSetting('redisTimeout', 'Redis timeout');
         $this->redisTimeout->readableByCurrentUser = true;
-        $this->redisTimeout->type  = static::TYPE_FLOAT;
+        $this->redisTimeout->type = static::TYPE_FLOAT;
         $this->redisTimeout->uiControlType = static::CONTROL_TEXT;
         $this->redisTimeout->uiControlAttributes = array('size' => 5);
-        $this->redisTimeout->description   = 'Redis connection timeout in seconds';
-        $this->redisTimeout->inlineHelp    = '"0.0" meaning unlimited.';
-        $this->redisTimeout->defaultValue  = '0.0';
+        $this->redisTimeout->description = 'Redis connection timeout in seconds';
+        $this->redisTimeout->inlineHelp = '"0.0" meaning unlimited. Can be a float eg "2.5" for a connection timeout of 2.5 seconds.';
+        $this->redisTimeout->defaultValue = '0.1';
         $this->redisTimeout->validate = function ($value) {
             if (strlen($value) > 5) {
-                throw new \Exception('Max 5 characters are allowed');
+                throw new \Exception('Max 5 characters allowed');
             }
 
             if (!is_numeric($value)) {
                 throw new \Exception('Timeout should be numeric, eg "0.0"');
             }
         };
-        $this->redisTimeout->transform = function ($value) {
-            $value = (float) $value;
-
-            if (0.0 === $value) {
-                return '0.0';
-            }
-
-            return Common::forceDotAsSeparatorForDecimalPoint($value);
-        };
-
 
         $this->addSetting($this->redisTimeout);
     }
@@ -129,15 +119,15 @@ class Settings extends \Piwik\Plugin\Settings
     {
         $this->redisPassword = new SystemSetting('redisPassword', 'Redis password');
         $this->redisPassword->readableByCurrentUser = true;
-        $this->redisPassword->type  = static::TYPE_STRING;
+        $this->redisPassword->type = static::TYPE_STRING;
         $this->redisPassword->uiControlType = static::CONTROL_PASSWORD;
         $this->redisPassword->uiControlAttributes = array('size' => 100);
-        $this->redisPassword->description   = 'An optional password for your Redis instance';
-        $this->redisPassword->inlineHelp    = 'Redis can be instructed to require a password before allowing clients to execute commands.';
-        $this->redisPassword->defaultValue  = '';
+        $this->redisPassword->description = 'Password set on the Redis server, if any';
+        $this->redisPassword->inlineHelp = 'Redis can be instructed to require a password before allowing clients to execute commands.';
+        $this->redisPassword->defaultValue = '';
         $this->redisPassword->validate = function ($value) {
             if (strlen($value) > 100) {
-                throw new \Exception('Max 100 characters are allowed');
+                throw new \Exception('Max 100 characters allowed');
             }
         };
 
@@ -147,13 +137,13 @@ class Settings extends \Piwik\Plugin\Settings
     private function createQueueEnabledSetting()
     {
         $self = $this;
-        $this->queueEnabled        = new SystemSetting('queueEnabled', 'Queue enabled');
+        $this->queueEnabled = new SystemSetting('queueEnabled', 'Queue enabled');
         $this->queueEnabled->readableByCurrentUser = true;
-        $this->queueEnabled->type  = static::TYPE_BOOL;
+        $this->queueEnabled->type = static::TYPE_BOOL;
         $this->queueEnabled->uiControlType = static::CONTROL_CHECKBOX;
-        $this->queueEnabled->description   = 'Enable writing all tracking requests into a queue';
-        $this->queueEnabled->inlineHelp    = 'If enabled, all tracking requests will be written into a queue. Requires a Redis server and phpredis PHP extension.';
-        $this->queueEnabled->defaultValue  = false;
+        $this->queueEnabled->description = 'Enable writing all tracking requests into a queue';
+        $this->queueEnabled->inlineHelp = 'If enabled, all tracking requests will be written into a queue instead of the directly into the database. Requires a Redis server and phpredis PHP extension.';
+        $this->queueEnabled->defaultValue = false;
         $this->queueEnabled->validate = function ($value) use ($self) {
             $value = (bool) $value;
 
@@ -174,22 +164,22 @@ class Settings extends \Piwik\Plugin\Settings
 
     private function createNumRequestsToProcessSetting()
     {
-        $this->numRequestsToProcess = new SystemSetting('numRequestsToProcess', 'Number of requests in queue to process');
+        $this->numRequestsToProcess = new SystemSetting('numRequestsToProcess', 'Number of requests to process');
         $this->numRequestsToProcess->readableByCurrentUser = true;
         $this->numRequestsToProcess->type  = static::TYPE_INT;
         $this->numRequestsToProcess->uiControlType = static::CONTROL_TEXT;
         $this->numRequestsToProcess->uiControlAttributes = array('size' => 3);
-        $this->numRequestsToProcess->description     = 'Defines how many requests will be picked out of the queue and processed at once';
-        $this->numRequestsToProcess->inlineHelp      = 'Enter a number which is >= 1. In case you set the value to 1 it is recommend to disable "Process during tracking request" and use a console command instead to process the requests. You might want to adjust this number eg to the number of tracking requests you get per 10 seconds on average.';
-        $this->numRequestsToProcess->defaultValue    = '50';
+        $this->numRequestsToProcess->description = 'Number of requests needed to start processing queue';
+        $this->numRequestsToProcess->inlineHelp = 'Defines how many requests will be picked out of the queue and processed at once. Enter a number which is >= 1. You might want to adjust this number eg to the number of tracking requests you get per 10 seconds on average.';
+        $this->numRequestsToProcess->defaultValue = '50';
         $this->numRequestsToProcess->validate = function ($value, $setting) {
-
-            if ((int) $value < 1) {
-                throw new \Exception('Value is invalid ' . $value);
-            }
 
             if (!is_numeric($value)) {
                 throw new \Exception('Value should be a number');
+            }
+
+            if ((int) $value < 1) {
+                throw new \Exception('Number should be 1 or higher');
             }
         };
 
