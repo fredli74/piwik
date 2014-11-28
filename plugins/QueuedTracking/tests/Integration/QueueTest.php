@@ -266,12 +266,12 @@ class QueueTest extends IntegrationTestCase
         unset($eState['time']);
         unset($aState['time']);
 
-        if (array_key_exists('REQUEST_TIME_FLOAT', $eState)) {
-            unset($eState['REQUEST_TIME_FLOAT']);
+        if (array_key_exists('REQUEST_TIME_FLOAT', $eState['env']['server'])) {
+            unset($eState['env']['server']['REQUEST_TIME_FLOAT']);
         }
 
-        if (array_key_exists('REQUEST_TIME_FLOAT', $aState)) {
-            unset($aState['REQUEST_TIME_FLOAT']);
+        if (array_key_exists('REQUEST_TIME_FLOAT', $aState['env']['server'])) {
+            unset($aState['env']['server']['REQUEST_TIME_FLOAT']);
         }
 
         $this->assertGreaterThan(100000, $aTime);
