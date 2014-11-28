@@ -26,6 +26,11 @@ It might be possible that you disable the queue but there are still some pending
 change the "Number of requests to process" in plugin settings to "1" and process all requests using the command 
 `./console queuedtracking:process` shortly before disabling the queue and directly afterwards.
 
+__Are there known issues?__
+
+In case you are using bulk tracking the response varies compared to the normal bulk tracking. We will always return either
+an image or a 204 HTTP response code in case the parameter `send_image=0` is sent.
+
 ## Changelog
 
 Here goes the changelog text.

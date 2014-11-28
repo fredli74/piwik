@@ -9,6 +9,7 @@
 namespace Piwik\Plugins\QueuedTracking\tests\Framework\TestCase;
 
 use Piwik\Plugins\QueuedTracking\Queue;
+use Piwik\Plugins\QueuedTracking\QueuedTracking;
 
 /**
  * @group QueuedTracking
@@ -16,9 +17,18 @@ use Piwik\Plugins\QueuedTracking\Queue;
  */
 class IntegrationTestCase extends \Piwik\Tests\Framework\TestCase\IntegrationTestCase
 {
+    public function setUp()
+    {
+        parent::setUp();
+
+        $queuedTracking = new QueuedTracking();
+        $queuedTracking->configureQueueTestBackend();
+    }
+
     public static function tearDownAfterClass()
     {
         Queue\Factory::clearSettings();
+
         parent::tearDownAfterClass();
     }
 
@@ -29,7 +39,7 @@ class IntegrationTestCase extends \Piwik\Tests\Framework\TestCase\IntegrationTes
 
     protected function createRedisBackend()
     {
-        return Queue\Factory::makeRedisTestBackend();
+        return Queue\Factory::makeBackend();
     }
 
 }

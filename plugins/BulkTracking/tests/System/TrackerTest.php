@@ -8,13 +8,13 @@
 
 namespace Piwik\Plugins\BulkTracking\tests\System;
 
-use Piwik\Plugins\BulkTracking\tests\fixtures\SimpleFixtureTrackFewVisits;
 use Piwik\Tests\Framework\Fixture;
 use Piwik\Tests\Framework\TestCase\SystemTestCase;
 
 /**
  * @group BulkTracking
  * @group TrackerTest
+ * @group Tracker
  * @group Plugins
  */
 class TrackerTest extends SystemTestCase

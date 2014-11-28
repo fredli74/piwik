@@ -69,7 +69,6 @@ require_once PIWIK_INCLUDE_PATH . '/core/Cookie.php';
 
 session_cache_limiter('nocache');
 @date_default_timezone_set('UTC');
-set_time_limit(0);
 
 $tracker    = new Tracker();
 $requestSet = new RequestSet();

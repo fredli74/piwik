@@ -9,6 +9,7 @@
 namespace Piwik\Plugins\QueuedTracking;
 
 use Piwik\Common;
+use Piwik\Settings\Storage\StaticStorage;
 use Piwik\Settings\SystemSetting;
 
 /**
@@ -29,6 +30,9 @@ class Settings extends \Piwik\Plugin\Settings
     public $redisPassword;
 
     /** @var SystemSetting */
+    public $redisDatabase;
+
+    /** @var SystemSetting */
     public $queueEnabled;
 
     /** @var SystemSetting */
@@ -45,6 +49,7 @@ class Settings extends \Piwik\Plugin\Settings
         $this->createRedisPortSetting();
         $this->createRedisTimeoutSetting();
         $this->createRedisPasswordSetting();
+        $this->createRedisDatabaseSetting();
         $this->createQueueEnabledSetting();
         $this->createNumRequestsToProcessSetting();
         $this->createProcessInTrackingRequestSetting();
@@ -133,6 +138,24 @@ class Settings extends \Piwik\Plugin\Settings
         };
 
         $this->addSetting($this->redisPassword);
+    }
+
+    private function createRedisDatabaseSetting()
+    {
+        $this->redisDatabase = new SystemSetting('redisDatabase', 'Redis database');
+        $this->redisDatabase->readableByCurrentUser = true;
+        $this->redisDatabase->type = static::TYPE_INT;
+        $this->redisDatabase->uiControlType = static::CONTROL_TEXT;
+        $this->redisDatabase->uiControlAttributes = array('size' => 6);
+        $this->redisDatabase->defaultValue = '';
+        $this->redisDatabase->validate = function ($value) {
+            if (strlen($value) > 6) {
+                throw new \Exception('Max 6 digits allowed');
+            }
+        };
+
+        // we do not expose this one to the UI currently. That's on purpose
+        $this->redisDatabase->setStorage(new StaticStorage('QueuedTracking'));
     }
 
     private function createQueueEnabledSetting()

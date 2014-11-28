@@ -89,6 +89,7 @@ class Handler extends Tracker\Handler
         if ($processor->acquireLock()) {
 
             Common::printDebug('We are going to process the queue');
+            set_time_limit(0);
 
             try {
                 $processor->process();

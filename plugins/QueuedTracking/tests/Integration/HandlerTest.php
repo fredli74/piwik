@@ -65,7 +65,7 @@ class HandlerTest extends IntegrationTestCase
         Fixture::createWebsite('2014-01-01 00:00:00');
         Tracker\Cache::deleteTrackerCache();
 
-        $this->backend = Queue\Factory::makeRedisTestBackend();
+        $this->backend = $this->createRedisBackend();
         $this->queue   = Queue\Factory::makeQueue($this->backend);
 
         $this->response = new Response();

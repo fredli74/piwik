@@ -10,6 +10,7 @@
 namespace Piwik\Plugins\QueuedTracking\Queue;
 
 use Piwik\Plugins\QueuedTracking\Queue;
+use Piwik\Plugins\QueuedTracking\QueuedTracking;
 use Piwik\Plugins\QueuedTracking\Settings;
 use Piwik\Tracker\SettingsStorage;
 
@@ -52,15 +53,6 @@ class Factory
         return self::makeQueueFromSettings($settings, $backend);
     }
 
-    public static function makeRedisTestBackend()
-    {
-        $redis = new Queue\Backend\Redis();
-        $redis->setConfig('127.0.0.1', 6379, 0.0, null);
-        $redis->setDatabase(999);
-
-        return $redis;
-    }
-
     private static function makeQueueFromSettings(Settings $settings, Backend $backend)
     {
         $queue = new Queue($backend);
@@ -75,9 +67,14 @@ class Factory
         $port     = $settings->redisPort->getValue();
         $timeout  = $settings->redisTimeout->getValue();
         $password = $settings->redisPassword->getValue();
+        $database = $settings->redisDatabase->getValue();
 
         $redis = new Queue\Backend\Redis();
         $redis->setConfig($host, $port, $timeout, $password);
+
+        if (!empty($database)) {
+            $redis->setDatabase($database);
+        }
 
         return $redis;
     }

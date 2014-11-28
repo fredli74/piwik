@@ -128,7 +128,7 @@ class TrackerTest extends BulkTrackingTestCase
 
     private function getIdVisit($idVisit)
     {
-        return Tracker::getDatabase()->fetchOne("SELECT * FROM " . Common::prefixTable('log_visit') . " WHERE idvisit = ?", array($idVisit));
+        return Tracker::getDatabase()->fetchRow("SELECT * FROM " . Common::prefixTable('log_visit') . " WHERE idvisit = ?", array($idVisit));
     }
 
 }

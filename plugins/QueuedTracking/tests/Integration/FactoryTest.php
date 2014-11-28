@@ -23,14 +23,14 @@ class FactoryTest extends IntegrationTestCase
 
     public function test_makeQueue_shouldReturnAQueueInstance()
     {
-        $queue = Factory::makeQueue(Factory::makeRedisTestBackend());
+        $queue = Factory::makeQueue($this->createRedisBackend());
         $this->assertTrue($queue instanceof Queue);
     }
 
     public function test_makeQueue_shouldConfigureTheNumberOfRequestsToProcess()
     {
         Factory::getSettings()->numRequestsToProcess->setValue(34);
-        $queue = Factory::makeQueue(Factory::makeRedisTestBackend());
+        $queue = Factory::makeQueue($this->createRedisBackend());
         $this->assertSame(34, $queue->getNumberOfRequestsToProcessAtSameTime());
     }
 
@@ -43,18 +43,6 @@ class FactoryTest extends IntegrationTestCase
     public function test_makeBackend_shouldConfigureRedis()
     {
         $success = Factory::makeBackend()->testConnection();
-        $this->assertTrue($success);
-    }
-
-    public function test_makeRedisTestBackend_shouldReturnARedisInstance()
-    {
-        $backend = Factory::makeRedisTestBackend();
-        $this->assertTrue($backend instanceof Queue\Backend\Redis);
-    }
-
-    public function test_makeTestBackend_shouldConfigureRedis()
-    {
-        $success = Factory::makeRedisTestBackend()->testConnection();
         $this->assertTrue($success);
     }
 
