@@ -15,7 +15,7 @@ use Exception;
 
 class TestResponse extends Response {
 
-    protected function logExceptionToErrorLog()
+    protected function logExceptionToErrorLog(Exception $e)
     {
         // prevent console from outputting the error_log message
     }
