@@ -130,7 +130,7 @@ class Tracker
         if ($request->isEmptyRequest()) {
             Common::printDebug("The request is empty");
         } else {
-            $this->loadTrackerPlugins($request);
+            $this->loadTrackerPlugins();
 
             Common::printDebug("Current datetime: " . date("Y-m-d H:i:s", $request->getCurrentTimestamp()));
 

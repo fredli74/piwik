@@ -14,14 +14,13 @@ use Piwik\Plugins\BulkTracking\tests\Framework\Mock\Tracker\Response;
 use Piwik\Plugins\BulkTracking\tests\Framework\TestCase\BulkTrackingTestCase;
 use Piwik\Plugins\BulkTracking\Tracker\Handler;
 use Piwik\Tests\Framework\Fixture;
-use Piwik\Tracker\Request;
 use Piwik\Tracker;
 use Piwik\Translate;
 use Piwik\Tests\Framework\Mock\Tracker\RequestSet;
 
 class TestIntegrationTracker extends Tracker {
 
-    protected function loadTrackerPlugins(Request $request)
+    protected function loadTrackerPlugins()
     {
         // if we reload the plugins we would lose the injected data :(
     }
