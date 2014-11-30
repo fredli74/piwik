@@ -518,7 +518,13 @@ class Common
      */
     public static function generateUniqId()
     {
-        return md5(uniqid(rand(), true));
+        if (function_exists('mt_rand')) {
+            $rand = mt_rand();
+        } else {
+            $rand = rand();
+        }
+
+        return md5(uniqid($rand, true));
     }
 
     /**
