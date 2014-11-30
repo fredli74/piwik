@@ -189,30 +189,6 @@ class TrackerTest extends IntegrationTestCase
         $this->assertTrue($called);
     }
 
-    public function test_trackRequest_shouldNotLoadProviderPlugin_IfDpIsNotGiven()
-    {
-        $this->tracker->trackRequest($this->buildRequest(array('idsite' => 1, 'dp' => 1)));
-
-        $plugins = Plugin\Manager::getInstance()->getTrackerPluginsNotToLoad();
-
-        $this->assertEquals(array('Provider'), $plugins);
-
-        // verify
-        $this->assertFalse(Plugin\Manager::getInstance()->isPluginLoaded('Provider'));
-    }
-
-    public function test_trackRequest_shouldLoadProviderPlugin_IfDpIsNotGiven()
-    {
-        $this->tracker->trackRequest($this->request);
-
-        $plugins = Plugin\Manager::getInstance()->getTrackerPluginsNotToLoad();
-
-        $this->assertEquals(array(), $plugins);
-
-        // verify
-        $this->assertTrue(Plugin\Manager::getInstance()->isPluginLoaded('Provider'));
-    }
-
     public function test_trackRequest_shouldIncreaseLoggedRequestsCounter()
     {
         $this->tracker->trackRequest($this->request);

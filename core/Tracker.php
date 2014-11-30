@@ -165,7 +165,7 @@ class Tracker
                 Db::createDatabaseObject();
             }
 
-            \Piwik\Plugin\Manager::getInstance()->loadCorePluginsDuringTracker();
+            PluginManager::getInstance()->loadCorePluginsDuringTracker();
         }
     }
 
@@ -268,22 +268,13 @@ class Tracker
         $pluginsDisabled = array('Provider');
 
         // Disable provider plugin, because it is so slow to do many reverse ip lookups
-        \Piwik\Plugin\Manager::getInstance()->setTrackerPluginsNotToLoad($pluginsDisabled);
+        PluginManager::getInstance()->setTrackerPluginsNotToLoad($pluginsDisabled);
     }
 
-    protected function loadTrackerPlugins(Request $request)
+    protected function loadTrackerPlugins()
     {
-        $pluginManager = PluginManager::getInstance();
-
-        // Adding &dp=1 will disable the provider plugin, this is an "unofficial" parameter used to speed up log importer
-        $disableProvider = $request->getParam('dp');
-        if (!empty($disableProvider)) {
-            $pluginManager->setTrackerPluginsNotToLoad(array('Provider'));
-        } else {
-            $pluginManager->setTrackerPluginsNotToLoad(array());
-        }
-
         try {
+            $pluginManager  = PluginManager::getInstance();
             $pluginsTracker = $pluginManager->loadTrackerPlugins();
             Common::printDebug("Loading plugins: { " . implode(", ", $pluginsTracker) . " }");
         } catch (Exception $e) {
