@@ -11,6 +11,7 @@
 use Piwik\Tracker\RequestSet;
 use Piwik\Tracker;
 use Piwik\Tracker\Handler;
+use Piwik\SettingsServer;
 
 // Note: if you wish to debug the Tracking API please see this documentation:
 // http://developer.piwik.org/api-reference/tracking-api#debugging-the-tracker
@@ -23,7 +24,6 @@ if (file_exists(PIWIK_DOCUMENT_ROOT . '/bootstrap.php')) {
     require_once PIWIK_DOCUMENT_ROOT . '/bootstrap.php';
 }
 
-$GLOBALS['PIWIK_TRACKER_MODE'] = true;
 error_reporting(E_ALL | E_NOTICE);
 @ini_set('xdebug.show_exception_trace', 0);
 @ini_set('magic_quotes_runtime', 0);
@@ -60,12 +60,15 @@ require_once PIWIK_INCLUDE_PATH . '/core/IP.php';
 require_once PIWIK_INCLUDE_PATH . '/core/UrlHelper.php';
 require_once PIWIK_INCLUDE_PATH . '/core/Url.php';
 require_once PIWIK_INCLUDE_PATH . '/core/SettingsPiwik.php';
+require_once PIWIK_INCLUDE_PATH . '/core/SettingsServer.php';
 require_once PIWIK_INCLUDE_PATH . '/core/Tracker.php';
 require_once PIWIK_INCLUDE_PATH . '/core/Config.php';
 require_once PIWIK_INCLUDE_PATH . '/core/Translate.php';
 require_once PIWIK_INCLUDE_PATH . '/core/Tracker/Cache.php';
 require_once PIWIK_INCLUDE_PATH . '/core/Tracker/Request.php';
 require_once PIWIK_INCLUDE_PATH . '/core/Cookie.php';
+
+Tracker::loadTrackerEnvironment();
 
 session_cache_limiter('nocache');
 @date_default_timezone_set('UTC');
@@ -76,8 +79,6 @@ $requestSet = new RequestSet();
 ob_start();
 
 try {
-    \Piwik\Plugin\Manager::getInstance()->loadTrackerPlugins();
-
     $handler  = Handler\Factory::make();
     $response = $tracker->main($handler, $requestSet);
 

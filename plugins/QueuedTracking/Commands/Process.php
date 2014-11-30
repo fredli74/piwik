@@ -9,10 +9,11 @@
 
 namespace Piwik\Plugins\QueuedTracking\Commands;
 
+use Piwik\Access;
 use Piwik\Plugin\ConsoleCommand;
 use Piwik\Plugins\QueuedTracking\Queue;
 use Piwik\Plugins\QueuedTracking\Queue\Processor;
-use Piwik\Plugins\QueuedTracking\Settings;
+use Piwik\Tracker;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -28,20 +29,24 @@ class Process extends ConsoleCommand
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        Access::getInstance()->setSuperUserAccess(false);
+        Tracker::loadTrackerEnvironment();
+
         $backend   = Queue\Factory::makeBackend();
         $queue     = Queue\Factory::makeQueue($backend);
         $processor = new Processor($queue, $backend);
 
-        $numRequests = $queue->getNumberOfRequestSetsInQueue();
+        $numRequestsQueued = $queue->getNumberOfRequestSetsInQueue();
 
         if (!$queue->shouldProcess()) {
-            $this->writeSuccessMessage($output, array("Nothing to process. Only $numRequests request sets are queued."));
+            $numRequestsNeeded = $queue->getNumberOfRequestsToProcessAtSameTime();
+            $this->writeSuccessMessage($output, array("Nothing to process. Only $numRequestsQueued request sets are queued, $numRequestsNeeded are needed to start processing the queue."));
         } elseif (!$processor->acquireLock()) {
-            $this->writeSuccessMessage($output, array("Nothing to proccess. $numRequests request sets are queued and they are already in process by another script."));
+            $this->writeSuccessMessage($output, array("Nothing to proccess. $numRequestsQueued request sets are queued and they are already in process by another script."));
         } else {
-            $output->writeln("<info>Starting to process $numRequests request sets, this can take a while</info>");
+            $output->writeln("<info>Starting to process $numRequestsQueued request sets, this can take a while</info>");
 
-            $this->setProgressCallback($processor, $output, $numRequests);
+            $this->setProgressCallback($processor, $output, $numRequestsQueued);
 
             try {
                 $processor->process();

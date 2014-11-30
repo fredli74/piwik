@@ -49,7 +49,7 @@ class Piwik_LocalTracker extends PiwikTracker
         \Piwik\Plugin\Manager::getInstance()->unloadPlugins();
 
         // modify config
-        $GLOBALS['PIWIK_TRACKER_MODE'] = true;
+        \Piwik\SettingsServer::setIsTrackerApiRequest();
         $GLOBALS['PIWIK_TRACKER_LOCAL_TRACKING'] = true;
         Tracker::$initTrackerMode = false;
         Tracker::setTestEnvironment($testEnvironmentArgs, $method);
@@ -91,7 +91,7 @@ class Piwik_LocalTracker extends PiwikTracker
         $_SERVER['HTTP_USER_AGENT'] = $oldUserAgent;
         $_COOKIE = $oldCookie;
         $GLOBALS['PIWIK_TRACKER_LOCAL_TRACKING'] = false;
-        $GLOBALS['PIWIK_TRACKER_MODE'] = false;
+        \Piwik\SettingsServer::setIsNotTrackerApiRequest();
         unset($_GET['bots']);
 
         // reload plugins

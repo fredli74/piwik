@@ -12,8 +12,8 @@ use Piwik\Common;
 use Piwik\EventDispatcher;
 use Piwik\Piwik;
 use Piwik\Plugin;
+use Piwik\SettingsServer;
 use Piwik\Tests\Framework\Fixture;
-use Piwik\Tests\Framework\Mock\Tracker\Handler;
 use Piwik\Tests\Framework\TestCase\IntegrationTestCase;
 use Piwik\Tracker;
 use Piwik\Tracker\RequestSet;
@@ -68,6 +68,9 @@ class TrackerTest extends IntegrationTestCase
     {
         $this->tracker->disconnectDatabase();
         EventDispatcher::getInstance()->clearObservers('Tracker.makeNewVisitObject');
+        if (array_key_exists('PIWIK_TRACKER_DEBUG', $GLOBALS)) {
+            unset($GLOBALS['PIWIK_TRACKER_DEBUG']);
+        }
         parent::tearDown();
     }
 
@@ -97,31 +100,37 @@ class TrackerTest extends IntegrationTestCase
         Tracker\TrackerConfig::setConfigValue('record_statistics', $oldConfig); // reset
     }
 
-    public function test_isDebugModeEnabled_main_shouldSetGlobalsDebugVar_WhichShouldBeDisabledByDefault()
+    public function test_loadTrackerEnvironment_shouldSetGlobalsDebugVar_WhichShouldBeDisabledByDefault()
     {
         $this->assertTrue(!array_key_exists('PIWIK_TRACKER_DEBUG', $GLOBALS));
 
-        $this->tracker->main(new Handler(), new Tracker\RequestSet());
-        $this->assertFalse($this->tracker->isDebugModeEnabled());
+        Tracker::loadTrackerEnvironment();
 
         $this->assertFalse($GLOBALS['PIWIK_TRACKER_DEBUG']);
-        unset($GLOBALS['PIWIK_TRACKER_DEBUG']);
     }
 
-    public function test_isDebugModeEnabled_main_shouldSetGlobalsDebugVar()
+    public function test_loadTrackerEnvironment_shouldSetGlobalsDebugVar()
     {
         $this->assertTrue(!array_key_exists('PIWIK_TRACKER_DEBUG', $GLOBALS));
 
         $oldConfig = Tracker\TrackerConfig::getConfigValue('debug');
         Tracker\TrackerConfig::setConfigValue('debug', 1);
 
-        $this->tracker->main(new Handler(), new Tracker\RequestSet());
+        Tracker::loadTrackerEnvironment();
         $this->assertTrue($this->tracker->isDebugModeEnabled());
 
         Tracker\TrackerConfig::setConfigValue('debug', $oldConfig); // reset
 
         $this->assertTrue($GLOBALS['PIWIK_TRACKER_DEBUG']);
-        unset($GLOBALS['PIWIK_TRACKER_DEBUG']);
+    }
+
+    public function test_loadTrackerEnvironment_shouldEnableTrackerMode()
+    {
+        $this->assertFalse(SettingsServer::isTrackerApiRequest());
+
+        Tracker::loadTrackerEnvironment();
+
+        $this->assertTrue(SettingsServer::isTrackerApiRequest());
     }
 
     public function test_isDatabaseConnected_shouldReturnFalse_IfNotConnected()
