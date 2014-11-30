@@ -18,7 +18,7 @@ In your Piwik instance go to "Settings => Plugin Settings". There will be a sect
 __Why do some tests fail on my local Piwik instance?__
 
 Make sure the requirements mentioned above are met and Redis needs to run on 127.0.0.1:6379 with no password for the
-integration tests to work.
+integration tests to work. It will use the database 999 and the tests may flush all data it contains.
 
 __What if I want to disable the queue?__
 

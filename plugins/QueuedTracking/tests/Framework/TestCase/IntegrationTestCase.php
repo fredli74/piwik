@@ -21,8 +21,7 @@ class IntegrationTestCase extends \Piwik\Tests\Framework\TestCase\IntegrationTes
     {
         parent::setUp();
 
-        $queuedTracking = new QueuedTracking();
-        $queuedTracking->configureQueueTestBackend();
+        $this->configureRedisTestInstance();
     }
 
     public static function tearDownAfterClass()
@@ -34,12 +33,19 @@ class IntegrationTestCase extends \Piwik\Tests\Framework\TestCase\IntegrationTes
 
     protected function clearRedisDb()
     {
+        $this->configureRedisTestInstance();
         $this->createRedisBackend()->flushAll();
     }
 
     protected function createRedisBackend()
     {
         return Queue\Factory::makeBackend();
+    }
+
+    private function configureRedisTestInstance()
+    {
+        $queuedTracking = new QueuedTracking();
+        $queuedTracking->configureQueueTestBackend();
     }
 
 }
