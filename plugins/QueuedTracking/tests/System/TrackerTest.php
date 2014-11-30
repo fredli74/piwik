@@ -125,7 +125,7 @@ class TrackerTest extends SystemTestCase
 
         // the last request should trigger processing them
         $this->doTrackNumberOfRequests(1);
-        $this->assertNumEntriesInQueue($this->requestProcessLimit); // it sends us the response before actually processing them
+        // it sends us the response before actually processing them
 
         $queue = $this->createQueue();
         while ($queue->getNumberOfRequestSetsInQueue() !== 0) {
