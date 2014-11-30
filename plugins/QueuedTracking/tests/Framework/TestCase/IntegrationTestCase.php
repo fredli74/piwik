@@ -33,12 +33,13 @@ class IntegrationTestCase extends \Piwik\Tests\Framework\TestCase\IntegrationTes
 
     protected function clearRedisDb()
     {
-        $this->configureRedisTestInstance();
-        $this->createRedisBackend()->flushAll();
+        $backend = $this->createRedisBackend();
+        $backend->flushAll();
     }
 
     protected function createRedisBackend()
     {
+        $this->configureRedisTestInstance();
         return Queue\Factory::makeBackend();
     }
 
