@@ -49,4 +49,5 @@ wget https://github.com/nicolasff/phpredis/archive/2.2.5.zip -O php-redis.zip &&
 cd phpredis-2.2.5/ && phpize && ./configure && make && make install
 cd ..
 rm -rf phpredis-2.2.5
+rm -f php-redis.zip
 echo "extension = redis.so" >> ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini
