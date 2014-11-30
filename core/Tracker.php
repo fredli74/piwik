@@ -223,7 +223,7 @@ class Tracker
         if (is_null($args)) {
             $requests = new Requests();
             $args     = $requests->getRequestsArrayFromBulkRequest($requests->getRawBulkRequest());
-            array_unshift($args, $_GET);
+            $args = $_GET + $args;
         }
 
         if (is_null($requestMethod) && array_key_exists('REQUEST_METHOD', $_SERVER)) {
