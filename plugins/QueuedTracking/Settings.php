@@ -41,9 +41,13 @@ class Settings extends \Piwik\Plugin\Settings
     /** @var SystemSetting */
     public $processDuringTrackingRequest;
 
+    private $staticStorage;
+
     protected function init()
     {
         $this->setIntroduction('Here you can specify the settings for queued tracking.');
+
+        $this->staticStorage = new StaticStorage('QueuedTracking');
 
         $this->createRedisHostSetting();
         $this->createRedisPortSetting();
@@ -106,7 +110,7 @@ class Settings extends \Piwik\Plugin\Settings
         $this->redisTimeout->uiControlAttributes = array('size' => 5);
         $this->redisTimeout->description = 'Redis connection timeout in seconds';
         $this->redisTimeout->inlineHelp = '"0.0" meaning unlimited. Can be a float eg "2.5" for a connection timeout of 2.5 seconds.';
-        $this->redisTimeout->defaultValue = '0.1';
+        $this->redisTimeout->defaultValue = 0.0;
         $this->redisTimeout->validate = function ($value) {
 
             if (!is_numeric($value)) {
@@ -118,7 +122,8 @@ class Settings extends \Piwik\Plugin\Settings
             }
         };
 
-        $this->addSetting($this->redisTimeout);
+        // we do not expose this one to the UI currently. That's on purpose
+        $this->redisTimeout->setStorage($this->staticStorage);
     }
 
     private function createRedisPasswordSetting()
@@ -155,7 +160,7 @@ class Settings extends \Piwik\Plugin\Settings
         };
 
         // we do not expose this one to the UI currently. That's on purpose
-        $this->redisDatabase->setStorage(new StaticStorage('QueuedTracking'));
+        $this->redisDatabase->setStorage($this->staticStorage);
     }
 
     private function createQueueEnabledSetting()

@@ -149,7 +149,7 @@ end';
     private function connect()
     {
         $this->redis = new \Redis();
-        $success = $this->redis->connect($this->host, $this->port, $this->timeout);
+        $success = $this->redis->connect($this->host, $this->port, $this->timeout, null, 100);
 
         if ($success && !empty($this->password)) {
             $success = $this->redis->auth($this->password);

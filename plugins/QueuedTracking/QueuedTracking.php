@@ -29,7 +29,6 @@ class QueuedTracking extends \Piwik\Plugin
         $settings = Factory::getSettings();
         $settings->redisHost->setValue('127.0.0.1');
         $settings->redisPort->setValue(6379);
-        $settings->redisTimeout->setValue(0.1);
         $settings->redisPassword->setValue('');
         $settings->redisDatabase->setValue(15);
     }
