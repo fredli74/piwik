@@ -9,6 +9,7 @@
 
 namespace Piwik\Plugins\QueuedTracking\Queue;
 
+use Piwik\Common;
 use Piwik\Tracker;
 use Piwik\Tracker\RequestSet;
 use Piwik\Plugins\QueuedTracking\Queue;
@@ -31,6 +32,7 @@ class Processor
     private $backend;
 
     private $lockKey = 'trackingQueueLock';
+    private $lockValue;
 
     private $callbackOnProcessNewSet;
 
@@ -166,12 +168,16 @@ class Processor
 
     public function acquireLock()
     {
-        return $this->backend->setIfNotExists($this->lockKey, 1);
+        if (!$this->lockValue) {
+            $this->lockValue = Common::generateUniqId();
+        }
+
+        return $this->backend->setIfNotExists($this->lockKey, $this->lockValue);
     }
 
     public function unlock()
     {
-        $this->backend->delete($this->lockKey);
+        $this->backend->deleteIfKeyHasValue($this->lockKey, $this->lockValue);
     }
 
     private function expireLock($ttlInSeconds)

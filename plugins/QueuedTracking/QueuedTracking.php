@@ -31,7 +31,7 @@ class QueuedTracking extends \Piwik\Plugin
         $settings->redisPort->setValue(6379);
         $settings->redisTimeout->setValue(0.1);
         $settings->redisPassword->setValue('');
-        $settings->redisDatabase->setValue(16);
+        $settings->redisDatabase->setValue(15);
     }
 
     public function replaceHandlerIfQueueIsEnabled(&$handler)

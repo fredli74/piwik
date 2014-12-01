@@ -27,7 +27,7 @@ interface Backend
 
     public function setIfNotExists($key, $value);
 
-    public function delete($key);
+    public function deleteIfKeyHasValue($key, $value);
 
     public function expire($key, $ttlInSeconds);
 }

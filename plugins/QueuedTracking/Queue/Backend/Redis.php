@@ -24,6 +24,8 @@ class Redis implements Backend
     private $timeout;
     private $password;
 
+    private $lockValue;
+
     /**
      * @var int
      */
@@ -93,11 +95,32 @@ class Redis implements Backend
         return $wasSet;
     }
 
+    /**
+     * @internal for tests only
+     */
     public function delete($key)
     {
         $this->connectIfNeeded();
 
         return $this->redis->del($key) > 0;
+    }
+
+    public function deleteIfKeyHasValue($key, $value)
+    {
+        $this->connectIfNeeded();
+
+        if (empty($value)) {
+            return false;
+        }
+
+        // see http://redis.io/topics/distlock
+        $script = 'if redis.call("GET",KEYS[1]) == ARGV[1] then
+    return redis.call("DEL",KEYS[1])
+else
+    return 0
+end';
+
+        return (bool) $this->redis->eval($script, array($key, $value), 1);
     }
 
     public function expire($key, $ttlInSeconds)

@@ -124,27 +124,27 @@ class RedisTest extends IntegrationTestCase
         $this->assertNumberOfItemsInList($this->emptyListKey, 4);
     }
 
-    public function test_delete_ShouldNotWork_IfKeyDoesNotExist()
+    public function test_deleteIfKeyHasValue_ShouldNotWork_IfKeyDoesNotExist()
     {
-        $success = $this->redis->delete('inVaLidKeyTest');
+        $success = $this->redis->deleteIfKeyHasValue('inVaLidKeyTest', '1');
         $this->assertFalse($success);
     }
 
-    public function test_delete_ShouldNotWork_ShouldBeAbleToDeleteAList()
+    public function test_deleteIfKeyHasValue_ShouldWork_ShouldBeAbleToDeleteARegularKey()
     {
-        $success = $this->redis->delete($this->listKey);
+        $success = $this->redis->setIfNotExists($this->key, 'test');
         $this->assertTrue($success);
 
-        // verify
-        $this->assertNumberOfItemsInList($this->listKey, 0);
+        $success = $this->redis->deleteIfKeyHasValue($this->key, 'test');
+        $this->assertTrue($success);
     }
 
-    public function test_delete_ShouldNotWork_ShouldBeAbleToDeleteARegularKey()
+    public function test_deleteIfKeyHasValue_ShouldNotWork_IfValueIsDifferent()
     {
         $this->redis->setIfNotExists($this->key, 'test');
 
-        $success = $this->redis->delete($this->key);
-        $this->assertTrue($success);
+        $success = $this->redis->deleteIfKeyHasValue($this->key, 'test2');
+        $this->assertFalse($success);
     }
 
     public function test_setIfNotExists_ShouldWork_IfNoValueIsSetYet()

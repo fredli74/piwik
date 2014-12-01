@@ -8,7 +8,7 @@ Add your plugin description here.
 
 __What are the requirements for this plugin?__
 
-* [Redis server](http://redis.io/), [Redis quickstart](http://redis.io/topics/quickstart)
+* [Redis server 2.8+](http://redis.io/), [Redis quickstart](http://redis.io/topics/quickstart)
 * [phpredis PHP extension](https://github.com/nicolasff/phpredis), [Install](https://github.com/nicolasff/phpredis#installingconfiguring)
 
 __Where can I configure and enable the queue?__
@@ -18,7 +18,7 @@ In your Piwik instance go to "Settings => Plugin Settings". There will be a sect
 __Why do some tests fail on my local Piwik instance?__
 
 Make sure the requirements mentioned above are met and Redis needs to run on 127.0.0.1:6379 with no password for the
-integration tests to work. It will use the database 16 and the tests may flush all data it contains.
+integration tests to work. It will use the database "15" and the tests may flush all data it contains.
 
 __What if I want to disable the queue?__
 
@@ -38,3 +38,8 @@ Here goes the changelog text.
 ## Support
 
 Please direct any feedback to ...
+
+## TODO
+
+For usage with multiple redis servers we should lock differently: 
+http://redis.io/topics/distlock eg using https://github.com/ronnylt/redlock-php 
