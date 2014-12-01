@@ -15,6 +15,7 @@ use Piwik\Tests\Framework\TestCase\IntegrationTestCase;
  * @group QueuedTracking
  * @group SettingsTest
  * @group Plugins
+ * @group Tracker
  */
 class SettingsTest extends IntegrationTestCase
 {
@@ -127,7 +128,7 @@ class SettingsTest extends IntegrationTestCase
 
     public function test_redisTimeout_ShouldBeNotUnlimitedByDefault()
     {
-        $this->assertEquals('0.1', $this->settings->redisTimeout->getValue());
+        $this->assertSame(0.0, $this->settings->redisTimeout->getValue());
     }
 
     public function test_redisTimeout_ShouldConvertAValueToFloat()

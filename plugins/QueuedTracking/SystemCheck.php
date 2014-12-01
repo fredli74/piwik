@@ -29,6 +29,12 @@ class SystemCheck
         if (!$redis->testConnection()) {
             throw new \Exception('Connection to Redis failed. Please verify Redis host and port');
         };
+
+        $version = $redis->getServerVersion();
+
+        if (version_compare($version, '2.8.0') < 0) {
+            throw new \Exception('At least Redis server 2.8.0 is required');
+        }
     }
 
 }

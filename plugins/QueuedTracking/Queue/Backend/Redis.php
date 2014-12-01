@@ -44,6 +44,21 @@ class Redis implements Backend
         return false;
     }
 
+    public function getServerVersion()
+    {
+        $this->connectIfNeeded();
+
+        $server = $this->redis->info('server');
+
+        if (empty($server)) {
+            return array();
+        }
+
+        $version = $server['redis_version'];
+
+        return $version;
+    }
+
     public function appendValuesToList($key, $values)
     {
         $this->connectIfNeeded();

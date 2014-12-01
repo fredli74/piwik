@@ -63,9 +63,13 @@ class Process extends ConsoleCommand
 
     private function setProgressCallback(Processor $processor, OutputInterface $output, $numRequests)
     {
-        $processor->setOnProcessNewSetOfRequestsCallback(function (Queue $queue) use ($output, $numRequests) {
+        $processor->setOnProcessNewRequestSetCallback(function (Queue $queue, Tracker $tracker) use ($output, $numRequests) {
+            $message = sprintf('%s requests tracked, %s request sets left in queue        ',
+                               $tracker->getCountOfLoggedRequests(),
+                               $queue->getNumberOfRequestSetsInQueue());
+
             $output->write("\x0D");
-            $output->write($queue->getNumberOfRequestSetsInQueue() . ' left in queue      ');
+            $output->write($message);
         });
 
     }

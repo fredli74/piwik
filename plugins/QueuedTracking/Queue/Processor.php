@@ -14,6 +14,8 @@ use Piwik\Tracker;
 use Piwik\Tracker\RequestSet;
 use Piwik\Plugins\QueuedTracking\Queue;
 use Piwik\Plugins\QueuedTracking\Queue\Backend\Redis;
+use RedisException;
+use Exception;
 
 /**
  * This class represents a page view, tracking URL, page title and generation time.
@@ -54,25 +56,8 @@ class Processor
         $request->rememberEnvironment();
 
         while ($this->queue->shouldProcess()) {
-
-            if ($this->callbackOnProcessNewSet) {
-                call_user_func($this->callbackOnProcessNewSet, $this->queue);
-            }
-
-            $numTrackedRequests = $tracker->getCountOfLoggedRequests();
-
-            $queuedRequestSets = $this->queue->getRequestSetsToProcess();
-            $validRequestSets  = $this->processRequestSets($tracker, $queuedRequestSets);
-
-            if ($this->needsARetry($queuedRequestSets, $validRequestSets)) {
-                // try once more without the failed ones
-                $tracker->setCountOfLoggedRequests($numTrackedRequests);
-                $this->processRequestSets($tracker, $validRequestSets);
-            }
-
-            $this->queue->markRequestSetsAsProcessed();
-            // in case of DB Exception maybe not mark them as processed and stop
-            // queue. (Also Log an error which could then once we use Monolog trigger an email or so)
+            $this->expireLock(10); // gives us 10 seconds to start processing
+            $this->actuallyProcess($tracker);
         }
 
         $request->restoreEnvironment();
@@ -80,10 +65,31 @@ class Processor
         return $tracker;
     }
 
+    private function actuallyProcess(Tracker $tracker)
+    {
+        if ($this->callbackOnProcessNewSet) {
+            call_user_func($this->callbackOnProcessNewSet, $this->queue, $tracker);
+        }
+
+        $numTrackedRequests = $tracker->getCountOfLoggedRequests();
+        $queuedRequestSets  = $this->queue->getRequestSetsToProcess();
+        $validRequestSets   = $this->processRequestSets($tracker, $queuedRequestSets);
+
+        if ($this->needsARetry($queuedRequestSets, $validRequestSets)) {
+            // try once more without the failed ones
+            $tracker->setCountOfLoggedRequests($numTrackedRequests);
+            $this->processRequestSets($tracker, $validRequestSets);
+        }
+
+        $this->queue->markRequestSetsAsProcessed();
+        // in case of DB Exception maybe not mark them as processed and stop
+        // queue. (Also Log an error which could then once we use Monolog trigger an email or so)
+    }
+
     /**
      * @param \Callable $callback
      */
-    public function setOnProcessNewSetOfRequestsCallback($callback)
+    public function setOnProcessNewRequestSetCallback($callback)
     {
         $this->callbackOnProcessNewSet = $callback;
     }
@@ -100,7 +106,6 @@ class Processor
         }
 
         foreach ($queuedRequestSets as $index => $request) {
-
             $numQueued    = count($request->getRequests());
             $numProcessed = count($validRequestSets[$index]->getRequests());
 
@@ -119,25 +124,35 @@ class Processor
      */
     private function processRequestSets(Tracker $tracker, $queuedRequestSets)
     {
-        $this->expireLock($ttlInSeconds = 300); // todo this processor does not really know it was locked by another class so should not really expire it.
-
         $validRequestSets = array();
 
         $transaction = $this->getDb()->beginTransaction();
         $hasError = false;
 
         foreach ($queuedRequestSets as $index => $requestSet) {
+
             $requestSet->restoreEnvironment();
 
             $count = 0;
 
             try {
+                $ttl = $requestSet->getNumberOfRequests() * 2; // 2 seconds per request set should give it enough time to process it
+                $this->expireLock($ttl); // todo this processor does not really know it was locked by another class so should not really expire it.
+
                 foreach ($requestSet->getRequests() as $request) {
                     $tracker->trackRequest($request);
                     $count++;
                 }
                 $validRequestSets[] = $requestSet;
-            } catch (\Exception $e) {
+            } catch (Tracker\Db\DbException $e) {
+                // TODO this is a db issue and not a request set issue, we should stop processing and retry later? or just ignore all?
+                // we could sleep for a tiny bit and hoping it works soonish again?
+
+            } catch (RedisException $e) {
+                // TODO this is a redis issue and not a request set issue, we should stop processing and retry later? or just ignore all?
+                // see DbException
+
+            } catch (Exception $e) {
                 // TODO
                 // TODO also handle db exception maybe differently
                 $hasError = true;
@@ -178,6 +193,7 @@ class Processor
     public function unlock()
     {
         $this->backend->deleteIfKeyHasValue($this->lockKey, $this->lockValue);
+        $this->lockValue = null;
     }
 
     private function expireLock($ttlInSeconds)

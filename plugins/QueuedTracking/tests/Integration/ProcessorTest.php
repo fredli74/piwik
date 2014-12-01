@@ -51,7 +51,7 @@ class ProcessorTest extends IntegrationTestCase
         $this->queue = new Queue($this->redis);
         $this->queue->setNumberOfRequestsToProcessAtSameTime(3);
 
-        $this->processor = new Processor($this->queue, $this->redis);
+        $this->processor = $this->createProcessor();
     }
 
     public function tearDown()
@@ -69,6 +69,22 @@ class ProcessorTest extends IntegrationTestCase
 
         $this->assertTrue($this->processor->acquireLock());
         $this->assertFalse($this->processor->acquireLock());
+    }
+
+    public function test_unlock_anotherProcessShouldNotBeAbleToUnlockALockedCommand()
+    {
+        $this->assertTrue($this->processor->acquireLock());
+
+        $processor = $this->createProcessor();
+        $processor->unlock();
+
+        $this->assertFalse($processor->acquireLock());
+
+        // now unlock the actual process
+        $this->processor->unlock();
+
+        // now it is actually unlocked and possible to lock again
+        $this->assertTrue($processor->acquireLock());
     }
 
     public function test_process_shouldDoNothing_IfQueueIsEmpty()
@@ -156,8 +172,10 @@ class ProcessorTest extends IntegrationTestCase
         $self   = $this;
         $queue  = $this->queue;
 
-        $this->processor->setOnProcessNewSetOfRequestsCallback(function ($passedQueue) use (&$called, $self, $queue) {
+        $this->processor->setOnProcessNewRequestSetCallback(function ($passedQueue, Tracker $tracker) use (&$called, $self, $queue) {
             $self->assertSame($queue, $passedQueue);
+            $self->assertTrue($tracker instanceof $tracker);
+            $self->assertGreaterThanOrEqual(0, $tracker->getCountOfLoggedRequests());
             $called++;
         });
 
@@ -190,5 +208,10 @@ class ProcessorTest extends IntegrationTestCase
         $req->setRequests($requests);
 
         return $req;
+    }
+
+    private function createProcessor()
+    {
+        return new Processor($this->queue, $this->redis);
     }
 }

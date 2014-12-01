@@ -91,4 +91,6 @@ try {
     exit(1);
 }
 
-ob_end_flush();
+if (ob_get_level() > 1) {
+    ob_end_flush();
+}

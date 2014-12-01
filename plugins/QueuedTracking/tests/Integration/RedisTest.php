@@ -234,5 +234,13 @@ class RedisTest extends IntegrationTestCase
         $this->assertTrue($success);
     }
 
+    public function test_getVersion_shouldReturnAVersionNumber()
+    {
+        $versionNumber = $this->createRedisBackend()->getServerVersion();
+        $this->assertNotEmpty($versionNumber, 'Could not get redis server version');
+
+        $this->assertTrue(version_compare($versionNumber, '2.8.0') >= 0);
+    }
+
 
 }
