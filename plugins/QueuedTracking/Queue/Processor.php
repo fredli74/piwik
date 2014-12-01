@@ -13,9 +13,8 @@ use Piwik\Common;
 use Piwik\Tracker;
 use Piwik\Tracker\RequestSet;
 use Piwik\Plugins\QueuedTracking\Queue;
+use Piwik\Plugins\QueuedTracking\Queue\Processor\Handler;
 use Piwik\Plugins\QueuedTracking\Queue\Backend\Redis;
-use RedisException;
-use Exception;
 
 /**
  * This class represents a page view, tracking URL, page title and generation time.
@@ -53,37 +52,27 @@ class Processor
         }
 
         $request = new RequestSet();
+        $handler = new Handler();
         $request->rememberEnvironment();
 
-        while ($this->queue->shouldProcess()) {
-            $this->expireLock(10); // gives us 10 seconds to start processing
-            $this->actuallyProcess($tracker);
+        while ($this->queue->shouldProcess() && $this->hasLock()) {
+            // gives us 10 sec to start processing which should only take a few ms...
+            $this->expireLock(10);
+
+            if ($this->callbackOnProcessNewSet) {
+                call_user_func($this->callbackOnProcessNewSet, $this->queue, $tracker);
+            }
+
+            $queuedRequestSets  = $this->queue->getRequestSetsToProcess();
+            $requestSetsToRetry = $this->processRequestSets($tracker, $handler, $queuedRequestSets);
+            $this->processRequestSets($tracker, $handler, $requestSetsToRetry);
+
+            $this->queue->markRequestSetsAsProcessed();
         }
 
         $request->restoreEnvironment();
 
         return $tracker;
-    }
-
-    private function actuallyProcess(Tracker $tracker)
-    {
-        if ($this->callbackOnProcessNewSet) {
-            call_user_func($this->callbackOnProcessNewSet, $this->queue, $tracker);
-        }
-
-        $numTrackedRequests = $tracker->getCountOfLoggedRequests();
-        $queuedRequestSets  = $this->queue->getRequestSetsToProcess();
-        $validRequestSets   = $this->processRequestSets($tracker, $queuedRequestSets);
-
-        if ($this->needsARetry($queuedRequestSets, $validRequestSets)) {
-            // try once more without the failed ones
-            $tracker->setCountOfLoggedRequests($numTrackedRequests);
-            $this->processRequestSets($tracker, $validRequestSets);
-        }
-
-        $this->queue->markRequestSetsAsProcessed();
-        // in case of DB Exception maybe not mark them as processed and stop
-        // queue. (Also Log an error which could then once we use Monolog trigger an email or so)
     }
 
     /**
@@ -95,90 +84,43 @@ class Processor
     }
 
     /**
-     * @param  RequestSet[] $queuedRequestSets
-     * @param  RequestSet[] $validRequestSets
-     * @return boolean
-     */
-    private function needsARetry($queuedRequestSets, $validRequestSets)
-    {
-        if (count($queuedRequestSets) != count($validRequestSets)) {
-            return true;
-        }
-
-        foreach ($queuedRequestSets as $index => $request) {
-            $numQueued    = count($request->getRequests());
-            $numProcessed = count($validRequestSets[$index]->getRequests());
-
-            if ($numQueued !== $numProcessed) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
      * @param Tracker $tracker
+     * @param Handler $handler
      * @param RequestSet[] $queuedRequestSets
      * @return mixed
      */
-    private function processRequestSets(Tracker $tracker, $queuedRequestSets)
+    private function processRequestSets(Tracker $tracker, Handler $handler, $queuedRequestSets)
     {
-        $validRequestSets = array();
+        if (empty($queuedRequestSets)) {
+            return array();
+        }
 
-        $transaction = $this->getDb()->beginTransaction();
-        $hasError = false;
+        $handler->init($tracker);
 
         foreach ($queuedRequestSets as $index => $requestSet) {
-
-            $requestSet->restoreEnvironment();
-
-            $count = 0;
+            $ttl = $this->getTtlToExpireWhenProcessingARequestSet($requestSet);
+            $this->expireLock($ttl);
 
             try {
-                $ttl = $requestSet->getNumberOfRequests() * 2; // 2 seconds per request set should give it enough time to process it
-                $this->expireLock($ttl); // todo this processor does not really know it was locked by another class so should not really expire it.
-
-                foreach ($requestSet->getRequests() as $request) {
-                    $tracker->trackRequest($request);
-                    $count++;
-                }
-                $validRequestSets[] = $requestSet;
-            } catch (Tracker\Db\DbException $e) {
-                // TODO this is a db issue and not a request set issue, we should stop processing and retry later? or just ignore all?
-                // we could sleep for a tiny bit and hoping it works soonish again?
-
-            } catch (RedisException $e) {
-                // TODO this is a redis issue and not a request set issue, we should stop processing and retry later? or just ignore all?
-                // see DbException
-
-            } catch (Exception $e) {
-                // TODO
-                // TODO also handle db exception maybe differently
-                $hasError = true;
-
-                if ($count > 0) {
-                    // remove the first one that failed and all following (standard bulk tracking behavior)
-                    $insertedRequests = array_slice($requestSet->getRequests(), 0, $count);
-                    $requestSet->setRequests($insertedRequests);
-                    $validRequestSets[] = $requestSet;
-                }
-
+                $handler->process($tracker, $requestSet);
+            } catch (\Exception $e) {
+                Common::printDebug($e->getMessage());
+                $handler->onException($tracker, $requestSet, $e);
             }
         }
 
-        if ($hasError) {
-            $this->getDb()->rollBack($transaction);
-        } else {
-            $this->getDb()->commit($transaction);
-        }
+        $this->expireLock(10); // gives us 10 seconds to finish processing
 
-        return $validRequestSets;
+        $requestSetsToRetry = $handler->finish($tracker);
+
+        return $requestSetsToRetry;
     }
 
-    private function getDb()
+    private function getTtlToExpireWhenProcessingARequestSet(RequestSet $requestSet)
     {
-        return Tracker::getDatabase();
+        $ttl = $requestSet->getNumberOfRequests() * 2;
+         // 2 seconds per request set should give it enough time to process it
+        return $ttl;
     }
 
     public function acquireLock()
@@ -190,6 +132,11 @@ class Processor
         return $this->backend->setIfNotExists($this->lockKey, $this->lockValue);
     }
 
+    private function hasLock()
+    {
+        return $this->lockValue === $this->backend->get($this->lockKey);
+    }
+
     public function unlock()
     {
         $this->backend->deleteIfKeyHasValue($this->lockKey, $this->lockValue);
@@ -198,7 +145,10 @@ class Processor
 
     private function expireLock($ttlInSeconds)
     {
-        $this->backend->expire($this->lockKey, $ttlInSeconds);
+        if ($ttlInSeconds > 0) {
+            $this->backend->expire($this->lockKey, $ttlInSeconds);
+        }
+
     }
 
 }

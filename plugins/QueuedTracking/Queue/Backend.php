@@ -30,4 +30,6 @@ interface Backend
     public function deleteIfKeyHasValue($key, $value);
 
     public function expire($key, $ttlInSeconds);
+
+    public function get($key);
 }

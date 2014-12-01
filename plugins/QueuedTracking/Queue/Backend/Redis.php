@@ -24,8 +24,6 @@ class Redis implements Backend
     private $timeout;
     private $password;
 
-    private $lockValue;
-
     /**
      * @var int
      */
@@ -143,6 +141,13 @@ end';
         $this->connectIfNeeded();
 
         return (bool) $this->redis->expire($key, $ttlInSeconds);
+    }
+
+    public function get($key)
+    {
+        $this->connectIfNeeded();
+
+        return $this->redis->get($key);
     }
 
     /**

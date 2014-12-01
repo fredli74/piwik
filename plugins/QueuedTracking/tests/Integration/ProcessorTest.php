@@ -109,7 +109,7 @@ class ProcessorTest extends IntegrationTestCase
     {
         $this->addRequestSetsToQueue(3);
 
-        $tracker = $this->processor->process();
+        $tracker = $this->lockAndProcess();
 
         $this->assertSame(3, $tracker->getCountOfLoggedRequests());
         $this->assertNumberOfRequestSetsLeftInQueue(0);
@@ -119,7 +119,7 @@ class ProcessorTest extends IntegrationTestCase
     {
         $this->addRequestSetsToQueue(5);
 
-        $tracker = $this->processor->process();
+        $tracker = $this->lockAndProcess();
 
         $this->assertSame(3, $tracker->getCountOfLoggedRequests());
         $this->assertNumberOfRequestSetsLeftInQueue(2);
@@ -129,10 +129,20 @@ class ProcessorTest extends IntegrationTestCase
     {
         $this->addRequestSetsToQueue(10);
 
-        $tracker = $this->processor->process();
+        $tracker = $this->lockAndProcess();
 
         $this->assertSame(9, $tracker->getCountOfLoggedRequests());
         $this->assertNumberOfRequestSetsLeftInQueue(1);
+    }
+
+    public function test_process_shouldNotProcess_IfLockWasNotAcquired()
+    {
+        $this->addRequestSetsToQueue(10);
+
+        $tracker = $this->processor->process();
+
+        $this->assertSame(0, $tracker->getCountOfLoggedRequests());
+        $this->assertNumberOfRequestSetsLeftInQueue(10);
     }
 
     public function test_process_shouldNotProcessAnything_IfRecordStatisticsIsDisabled()
@@ -141,7 +151,7 @@ class ProcessorTest extends IntegrationTestCase
 
         $record = TrackerConfig::getConfigValue('record_statistics');
         TrackerConfig::setConfigValue('record_statistics', 0);
-        $tracker = $this->processor->process();
+        $tracker = $this->lockAndProcess();
         TrackerConfig::setConfigValue('record_statistics', $record);
 
         $this->assertSame(0, $tracker->getCountOfLoggedRequests());
@@ -157,7 +167,7 @@ class ProcessorTest extends IntegrationTestCase
         $this->queue->addRequestSet($this->buildRequestSet(1));
         $this->queue->addRequestSet($this->buildRequestSet(8)); // bulk
 
-        $tracker = $this->processor->process();
+        $tracker = $this->lockAndProcess();
 
         $this->assertSame(7, $tracker->getCountOfLoggedRequests());
 
@@ -179,14 +189,21 @@ class ProcessorTest extends IntegrationTestCase
             $called++;
         });
 
-        $this->processor->process();
+        $this->lockAndProcess();
 
         $this->assertSame(5, $called); // 16 / 3 = 5
     }
 
+    private function lockAndProcess()
+    {
+        $this->assertTrue($this->processor->acquireLock());
+
+        return $this->processor->process();
+    }
+
     private function assertNumberOfRequestSetsLeftInQueue($numRequestsLeftInQueue)
     {
-        $this->assertCount($numRequestsLeftInQueue, $this->queue->getRequestSetsToProcess());
+        $this->assertSame($numRequestsLeftInQueue, $this->queue->getNumberOfRequestSetsInQueue());
     }
 
     private function addRequestSetsToQueue($numRequestSets)

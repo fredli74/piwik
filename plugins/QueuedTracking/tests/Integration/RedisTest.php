@@ -171,6 +171,19 @@ class RedisTest extends IntegrationTestCase
         $this->assertFalse($success);
     }
 
+    public function test_get_ShouldReturnFalse_IfKeyNotSet()
+    {
+        $value = $this->redis->get($this->key);
+        $this->assertFalse($value);
+    }
+
+    public function test_get_ShouldReturnTheSetValue_IfOneIsSet()
+    {
+        $this->redis->setIfNotExists($this->key, 'mytest');
+        $value = $this->redis->get($this->key);
+        $this->assertEquals('mytest', $value);
+    }
+
     /**
      * @depends test_setIfNotExists_ShouldAlsoNotWork_IfTryingToSetDifferentValue
      */

@@ -4,12 +4,15 @@
 
 Add your plugin description here.
 
+
+
 ## FAQ
 
 __What are the requirements for this plugin?__
 
 * [Redis server 2.8+](http://redis.io/), [Redis quickstart](http://redis.io/topics/quickstart)
 * [phpredis PHP extension](https://github.com/nicolasff/phpredis), [Install](https://github.com/nicolasff/phpredis#installingconfiguring)
+* Transactions will be used and must be supported by the SQL database.
 
 __Where can I configure and enable the queue?__
 
