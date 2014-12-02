@@ -697,9 +697,12 @@ class API extends \Piwik\Plugin\API
         // Subquery to use the indexes for ORDER BY
         $select = "log_visit.*";
         $from = "log_visit";
-        $subQuery = $segment->getSelectQuery($select, $from, $where, $whereBind, $orderBy);
+        $groupBy = "log_visit.idvisit";
+        $limit = $countVisitorsToFetch >= 1 ? $countVisitorsToFetch : false;
 
-        $sqlLimit = $countVisitorsToFetch >= 1 ? " LIMIT 0, " . (int)$countVisitorsToFetch : "";
+        $subQuery = $segment->getSelectQuery($select, $from, $where, $whereBind, $orderBy, $groupBy, $limit);
+
+        $sqlLimit = !empty($limit) ? " LIMIT 0, " . (int)$limit : "";
 
         // Group by idvisit so that a visitor converting 2 goals only appears once
         $sql = "
@@ -707,7 +710,7 @@ class API extends \Piwik\Plugin\API
 				" . $subQuery['sql'] . "
 				$sqlLimit
 			) AS sub
-			GROUP BY sub.idvisit
+			GROUP BY $groupBy
 			ORDER BY $orderByParent
 		";
         try {
