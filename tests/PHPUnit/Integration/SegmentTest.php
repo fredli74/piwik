@@ -463,11 +463,12 @@ class SegmentTest extends IntegrationTestCase
         $bind = array(1);
         $orderBy = 'log_visit.order_by_field';
         $groupBy = false;
+        $limit = 42;
 
         $segment = 'visitConvertedGoalId==1';
         $segment = new Segment($segment, $idSites = array());
 
-        $query = $segment->getSelectQuery($select, $from, $where, $bind, $orderBy, $groupBy);
+        $query = $segment->getSelectQuery($select, $from, $where, $bind, $orderBy, $groupBy, $limit);
 
         $expected = array(
             "sql"  => "
@@ -485,11 +486,19 @@ class SegmentTest extends IntegrationTestCase
                     AND
                     ( log_conversion.idgoal = ? )
                 GROUP BY log_visit.idvisit
+                ORDER BY log_visit.order_by_field
+                LIMIT 0, 42
                     ) AS log_inner
-                ORDER BY log_inner.order_by_field",
+                ORDER BY log_inner.order_by_field
+                LIMIT 0, 42
+                ",
             "bind" => array(1, 1));
 
         $this->assertEquals($this->_filterWhitsSpaces($expected), $this->_filterWhitsSpaces($query));
     }
+
+    // test_getSelectQuery_withJoinConversionOnVisit_failsWhenLimitButNoOrderBy
+
+    // Test with page URL segments !
 
 }

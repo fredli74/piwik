@@ -218,13 +218,13 @@ class Segment
      * @param string $select The select clause. Should NOT include the **SELECT** just the columns, eg,
      *                       `'t1.col1 as col1, t2.col2 as col2'`.
      * @param array $from Array of table names (without prefix), eg, `array('log_visit', 'log_conversion')`.
-     * @param false|string $where (optional) Where clause, eg, `'t1.col1 = ? AND t2.col2 = ?'`.
-     * @param array|string $bind (optional) Bind parameters, eg, `array($col1Value, $col2Value)`.
-     * @param false|string $orderBy (optional) Order by clause, eg, `"t1.col1 ASC"`.
-     * @param false|string $groupBy (optional) Group by clause, eg, `"t2.col2"`.
+     * @param string $where (optional) Where clause, eg, `'t1.col1 = ? AND t2.col2 = ?'`.
+     * @param string $bind (optional) Bind parameters, eg, `array($col1Value, $col2Value)`.
+     * @param string $orderBy (optional) Order by clause, eg, `"t1.col1 ASC"`.
+     * @param string $groupBy (optional) Group by clause, eg, `"t2.col2"`.
      * @return string The entire select query.
      */
-    public function getSelectQuery($select, $from, $where = false, $bind = array(), $orderBy = false, $groupBy = false)
+    public function getSelectQuery($select, $from, $where = false, $bind = array(), $orderBy = false, $groupBy = false, $limit = false)
     {
         if (!is_array($from)) {
             $from = array($from);
@@ -257,9 +257,9 @@ class Segment
         }
 
         if ($joinWithSubSelect) {
-            $sql = $this->buildWrappedSelectQuery($select, $from, $where, $orderBy, $groupBy);
+            $sql = $this->buildWrappedSelectQuery($select, $from, $where, $orderBy, $groupBy, $limit);
         } else {
-            $sql = $this->buildSelectQuery($select, $from, $where, $orderBy, $groupBy);
+            $sql = $this->buildSelectQuery($select, $from, $where, $orderBy, $groupBy, $limit);
         }
         return array(
             'sql'  => $sql,
@@ -381,9 +381,10 @@ class Segment
      * @param string $where where clause
      * @param string $orderBy order by clause
      * @param string $groupBy group by clause
+     * @param int $limit Number of rows to limit
      * @return string
      */
-    private function buildSelectQuery($select, $from, $where, $orderBy, $groupBy)
+    private function buildSelectQuery($select, $from, $where, $orderBy, $groupBy, $limit)
     {
         $sql = "
 			SELECT
@@ -409,6 +410,13 @@ class Segment
 				$orderBy";
         }
 
+        if ($limit) {
+            $limit = (int)$limit;
+            $sql .= "
+            LIMIT 0, $limit
+            ";
+        }
+
         return $sql;
     }
 
@@ -423,7 +431,7 @@ class Segment
      * @throws Exception
      * @return string
      */
-    private function buildWrappedSelectQuery($select, $from, $where, $orderBy, $groupBy)
+    private function buildWrappedSelectQuery($select, $from, $where, $orderBy, $groupBy, $limit)
     {
         $matchTables = "(log_visit|log_conversion_item|log_conversion|log_action)";
         preg_match_all("/". $matchTables ."\.[a-z0-9_\*]+/", $select, $matches);
@@ -434,18 +442,25 @@ class Segment
                 . "Please use a table prefix.");
         }
 
+        // Wrapped query
+        $innerOrderBy = $orderBy;
+        $innerSelect = implode(", ", $neededFields);
+        $innerGroupBy = 'log_visit.idvisit';;
+
+        // Main query
         $select = preg_replace('/'.$matchTables.'\./', 'log_inner.', $select);
         $orderBy = preg_replace('/'.$matchTables.'\./', 'log_inner.', $orderBy);
         $groupBy = preg_replace('/'.$matchTables.'\./', 'log_inner.', $groupBy);
 
-        $innerSelect = implode(", ", $neededFields);
-        $innerGroupBy = 'log_visit.idvisit';
-        $innerOrderBy = false;
-        $innerQuery = $this->buildSelectQuery($innerSelect, $from, $where, $innerOrderBy, $innerGroupBy);
+        if(!empty($limit) && empty($orderBy)) {
+            throw new Exception("Cannot create a predictable SQL query with a LIMIT but no ORDER BY. Expected to get ORDER BY.");
+        }
+
+        $innerQuery = $this->buildSelectQuery($innerSelect, $from, $where, $innerOrderBy, $innerGroupBy, $limit);
         $from = "( $innerQuery ) AS log_inner";
 
         $where = false;
-        $query = $this->buildSelectQuery($select, $from, $where, $orderBy, $groupBy);
+        $query = $this->buildSelectQuery($select, $from, $where, $orderBy, $groupBy, $limit);
         return $query;
     }
 
