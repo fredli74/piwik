@@ -36,11 +36,11 @@ class SegmentTest extends IntegrationTestCase
         parent::tearDown();
     }
 
-    protected function _filterWhitsSpaces($valueToFilter)
+    protected function _filterWhiteSpaces($valueToFilter)
     {
         if (is_array($valueToFilter)) {
             foreach ($valueToFilter as $key => $value) {
-                $valueToFilter[$key] = $this->_filterWhitsSpaces($value);
+                $valueToFilter[$key] = $this->_filterWhiteSpaces($value);
             }
             return $valueToFilter;
         } else {
@@ -117,11 +117,11 @@ class SegmentTest extends IntegrationTestCase
         $segment = new Segment($segment, $idSites = array());
         $sql = $segment->getSelectQuery($select, $from, false);
 
-        $this->assertEquals($this->_filterWhitsSpaces($expected), $this->_filterWhitsSpaces($sql));
+        $this->assertEquals($this->_filterWhiteSpaces($expected), $this->_filterWhiteSpaces($sql));
 
         // calling twice should give same results
         $sql = $segment->getSelectQuery($select, array($from));
-        $this->assertEquals($this->_filterWhitsSpaces($expected), $this->_filterWhitsSpaces($sql));
+        $this->assertEquals($this->_filterWhiteSpaces($expected), $this->_filterWhiteSpaces($sql));
 
         $this->assertEquals(32, strlen($segment->getHash()));
     }
@@ -150,7 +150,7 @@ class SegmentTest extends IntegrationTestCase
                     ( log_visit.custom_var_k1 = ? AND log_visit.visitor_returning = ? )",
             "bind" => array(1, 'Test', 0));
 
-        $this->assertEquals($this->_filterWhitsSpaces($expected), $this->_filterWhitsSpaces($query));
+        $this->assertEquals($this->_filterWhiteSpaces($expected), $this->_filterWhiteSpaces($query));
     }
 
     public function testGetSelectQueryJoinVisitOnAction()
@@ -178,7 +178,7 @@ class SegmentTest extends IntegrationTestCase
                     ( log_link_visit_action.custom_var_k1 = ? AND log_visit.visitor_returning = ? )",
             "bind" => array(1, 'Test', 0));
 
-        $this->assertEquals($this->_filterWhitsSpaces($expected), $this->_filterWhitsSpaces($query));
+        $this->assertEquals($this->_filterWhiteSpaces($expected), $this->_filterWhiteSpaces($query));
     }
 
     public function testGetSelectQueryJoinActionOnVisit()
@@ -213,7 +213,7 @@ class SegmentTest extends IntegrationTestCase
                     ) AS log_inner",
             "bind" => array(1, 'Test', 0));
 
-        $this->assertEquals($this->_filterWhitsSpaces($expected), $this->_filterWhitsSpaces($query));
+        $this->assertEquals($this->_filterWhiteSpaces($expected), $this->_filterWhiteSpaces($query));
     }
 
     public function testGetSelectQueryJoinConversionOnAction()
@@ -241,7 +241,7 @@ class SegmentTest extends IntegrationTestCase
                     ( log_link_visit_action.custom_var_k1 = ? AND log_conversion.idgoal = ? AND log_link_visit_action.custom_var_k2 = ? )",
             "bind" => array(1, 'Test', 1, 'Test2'));
 
-        $this->assertEquals($this->_filterWhitsSpaces($expected), $this->_filterWhitsSpaces($query));
+        $this->assertEquals($this->_filterWhiteSpaces($expected), $this->_filterWhiteSpaces($query));
     }
 
     public function testGetSelectQueryJoinActionOnConversion()
@@ -269,7 +269,7 @@ class SegmentTest extends IntegrationTestCase
                     ( ( log_conversion.idgoal IS NULL OR log_conversion.idgoal <> ? ) AND log_link_visit_action.custom_var_k1 = ? AND log_conversion.idgoal = ? )",
             "bind" => array(1, 2, 'Test', 1));
 
-        $this->assertEquals($this->_filterWhitsSpaces($expected), $this->_filterWhitsSpaces($query));
+        $this->assertEquals($this->_filterWhiteSpaces($expected), $this->_filterWhiteSpaces($query));
     }
 
     public function testGetSelectQueryJoinConversionOnVisit()
@@ -303,7 +303,7 @@ class SegmentTest extends IntegrationTestCase
                     ) AS log_inner",
             "bind" => array(1, 1));
 
-        $this->assertEquals($this->_filterWhitsSpaces($expected), $this->_filterWhitsSpaces($query));
+        $this->assertEquals($this->_filterWhiteSpaces($expected), $this->_filterWhiteSpaces($query));
     }
 
     public function testGetSelectQueryConversionOnly()
@@ -330,7 +330,7 @@ class SegmentTest extends IntegrationTestCase
                     ( log_conversion.idgoal = ? )",
             "bind" => array(1, 1));
 
-        $this->assertEquals($this->_filterWhitsSpaces($expected), $this->_filterWhitsSpaces($query));
+        $this->assertEquals($this->_filterWhiteSpaces($expected), $this->_filterWhiteSpaces($query));
     }
 
     public function testGetSelectQueryJoinVisitOnConversion()
@@ -358,7 +358,7 @@ class SegmentTest extends IntegrationTestCase
                     ( (log_conversion.idgoal = ? OR HOUR(log_visit.visit_last_action_time) = ? ))",
             "bind" => array(1, 1, 12));
 
-        $this->assertEquals($this->_filterWhitsSpaces($expected), $this->_filterWhitsSpaces($query));
+        $this->assertEquals($this->_filterWhiteSpaces($expected), $this->_filterWhiteSpaces($query));
     }
 
     /**
@@ -389,7 +389,7 @@ class SegmentTest extends IntegrationTestCase
                      HOUR(log_visit.visit_last_action_time) = ? AND log_conversion.idgoal = ? ",
             "bind" => array(12, 1));
 
-        $this->assertEquals($this->_filterWhitsSpaces($expected), $this->_filterWhitsSpaces($query));
+        $this->assertEquals($this->_filterWhiteSpaces($expected), $this->_filterWhiteSpaces($query));
     }
 
     /**
@@ -426,7 +426,7 @@ class SegmentTest extends IntegrationTestCase
                     ) AS log_inner",
             "bind" => array(1, 12, 'Test'));
 
-        $this->assertEquals($this->_filterWhitsSpaces($expected), $this->_filterWhitsSpaces($query));
+        $this->assertEquals($this->_filterWhiteSpaces($expected), $this->_filterWhiteSpaces($query));
     }
 
     /**
@@ -494,11 +494,77 @@ class SegmentTest extends IntegrationTestCase
                 ",
             "bind" => array(1, 1));
 
-        $this->assertEquals($this->_filterWhitsSpaces($expected), $this->_filterWhitsSpaces($query));
+        $this->assertEquals($this->_filterWhiteSpaces($expected), $this->_filterWhiteSpaces($query));
     }
 
-    // test_getSelectQuery_withJoinConversionOnVisit_failsWhenLimitButNoOrderBy
+    /**
+     * @expectedException \Exception
+     */
+    public function test_getSelectQuery_withJoinConversionOnVisit_throwsWhenLimitButNoOrderBy()
+    {
 
-    // Test with page URL segments !
+        $select = 'log_visit.*';
+        $from = 'log_visit';
+        $where = 'log_visit.idvisit = ?';
+        $bind = array(1);
+        $groupBy = false;
+
+        // no order by but a limit should fail
+        $orderBy = false;
+        $limit = 42;
+
+        $segment = 'visitConvertedGoalId==1';
+        $segment = new Segment($segment, $idSites = array());
+
+        $segment->getSelectQuery($select, $from, $where, $bind, $orderBy, $groupBy, $limit);
+    }
+
+    public function test_getSelectQuery_withJoinConversionOnLinkVisitAction()
+    {
+
+        $select = 'log_visit.*';
+        $from = 'log_visit';
+        $where = 'log_visit.idvisit = ?';
+        $orderBy = 'log_visit.order_by_field';
+        $groupBy = false;
+        $limit = 42;
+
+        $segment = 'pageUrl=@Hello%20wor%ld';
+        $bind = array(1);
+        $segment = new Segment($segment, $idSites = array());
+
+        $query = $segment->getSelectQuery($select, $from, $where, $bind, $orderBy, $groupBy, $limit);
+
+        $expected = array(
+            "sql"  => "
+                SELECT
+                    log_inner.*
+                FROM
+                    (
+                SELECT
+                    log_visit.*
+                FROM
+                    " . Common::prefixTable('log_visit') . " AS log_visit
+                    LEFT JOIN " . Common::prefixTable('log_link_visit_action') . " AS log_link_visit_action ON log_link_visit_action.idvisit = log_visit.idvisit
+                WHERE
+                    ( log_visit.idvisit = ? )
+                    AND
+                    (
+                        ( log_link_visit_action.idaction_url IN
+                            (SELECT idaction FROM piwiktests_log_action WHERE ( name LIKE CONCAT('%', ?, '%') AND type = 1 ))
+                        )
+                    )
+                GROUP BY log_visit.idvisit
+                ORDER BY log_visit.order_by_field
+                LIMIT 0, 42
+                    ) AS log_inner
+                ORDER BY log_inner.order_by_field
+                LIMIT 0, 42
+                ",
+
+            "bind" =>  array(1, 'Hello wor\%ld'));
+
+        $this->assertEquals($this->_filterWhiteSpaces($expected), $this->_filterWhiteSpaces($query));
+    }
 
 }
