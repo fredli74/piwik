@@ -6,7 +6,7 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
 
-namespace Piwik\Plugins\QueuedTracking\tests\Integration;
+namespace Piwik\Plugins\QueuedTracking\tests\Integration\Queue;
 
 use Piwik\Plugins\QueuedTracking\Queue;
 use Piwik\Plugins\QueuedTracking\Queue\Factory;

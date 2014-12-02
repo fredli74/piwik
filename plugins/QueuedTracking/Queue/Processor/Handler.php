@@ -9,7 +9,6 @@
 
 namespace Piwik\Plugins\QueuedTracking\Queue\Processor;
 
-use Piwik\Common;
 use Piwik\Tracker;
 use Piwik\Plugins\QueuedTracking\Queue;
 use Piwik\Plugins\QueuedTracking\Queue\Backend;
@@ -17,24 +16,22 @@ use Piwik\Plugins\QueuedTracking\Queue\Processor;
 use Piwik\Tracker\RequestSet;
 use Exception;
 use Piwik\Url;
-use RedisException;
 
 class Handler
 {
-    private $transaction;
-
-    private $hasError = false;
+    protected $transactionId;
+    protected $hasError = false;
 
     private $requestSetsToRetry = array();
     private $count = 0;
-
     private $numTrackedRequestsBeginning = 0;
 
     public function init(Tracker $tracker)
     {
-        $this->transaction = $this->getDb()->beginTransaction();
+        $this->requestSetsToRetry = array();
         $this->hasError = false;
         $this->numTrackedRequestsBeginning = $tracker->getCountOfLoggedRequests();
+        $this->transactionId = $this->getDb()->beginTransaction();
     }
 
     public function process(Tracker $tracker, RequestSet $requestSet)
@@ -43,35 +40,19 @@ class Handler
 
         $this->count = 0;
 
-        //try {
         foreach ($requestSet->getRequests() as $request) {
             $tracker->trackRequest($request);
             $this->count++;
         }
 
         $this->requestSetsToRetry[] = $requestSet;
-        // } catch (Tracker\Db\DbException $e) {
-            // TODO this is a db issue and not a request set issue, we should stop processing and retry later? or just ignore all?
-            // we could sleep for a tiny bit and hoping it works soonish again?
-
-        // } catch (RedisException $e) {
-            // TODO this is a redis issue and not a request set issue, we should stop processing and retry later? or just ignore all?
-            // see DbException
-
-        // }
     }
 
-    private function getDb()
+    public function onException(RequestSet $requestSet, Exception $e)
     {
-        return Tracker::getDatabase();
-    }
+        // todo: how do we want to handle DbException or RedisException?
 
-    public function onException(Tracker $tracker, RequestSet $requestSet, Exception $e)
-    {
-        // todo
-        $this->hasError = true;
-
-        $tracker->setCountOfLoggedRequests($this->numTrackedRequestsBeginning);
+        $this->forceARollback();
 
         if ($this->count > 0) {
             // remove the first one that failed and all following (standard bulk tracking behavior)
@@ -81,15 +62,31 @@ class Handler
         }
     }
 
+    public function forceARollback()
+    {
+        $this->hasError = true;
+    }
+
+    /**
+     * @param Tracker $tracker
+     * @return RequestSet[]
+     */
     public function finish(Tracker $tracker)
     {
         if ($this->hasError) {
-            $this->getDb()->rollBack($this->transaction);
+            $tracker->setCountOfLoggedRequests($this->numTrackedRequestsBeginning);
+
+            $this->getDb()->rollBack($this->transactionId);
             return $this->requestSetsToRetry;
         }
 
-        $this->getDb()->commit($this->transaction);
+        $this->getDb()->commit($this->transactionId);
         return array();
+    }
+
+    protected function getDb()
+    {
+        return Tracker::getDatabase();
     }
 
 }

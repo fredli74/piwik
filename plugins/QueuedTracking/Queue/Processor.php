@@ -62,10 +62,11 @@ class Processor
             $queuedRequestSets = $queue->getRequestSetsToProcess();
 
             if (!empty($queuedRequestSets)) {
-                $queue->markRequestSetsAsProcessed();
 
                 $requestSetsToRetry = $this->processRequestSets($tracker, $queuedRequestSets);
                 $this->processRequestSets($tracker, $requestSetsToRetry);
+
+                $queue->markRequestSetsAsProcessed();
             }
         }
 
@@ -103,11 +104,16 @@ class Processor
                 $this->handler->process($tracker, $requestSet);
             } catch (\Exception $e) {
                 Common::printDebug($e->getMessage());
-                $this->handler->onException($tracker, $requestSet, $e);
+                $this->handler->onException($requestSet, $e);
             }
         }
 
-        $this->expireLock(120); // gives us 120 seconds to finish processing
+        if ($this->hasLock()) {
+            $this->expireLock(120); // gives us 120 seconds to finish processing
+        } else {
+            // force a rollback in finish, too risky another process is processing the same?
+            $this->handler->forceARollback();
+        }
 
         $requestSetsToRetry = $this->handler->finish($tracker);
 
