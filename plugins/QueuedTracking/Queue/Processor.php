@@ -23,9 +23,9 @@ use Piwik\Plugins\QueuedTracking\Queue\Backend\Redis;
 class Processor
 {
     /**
-     * @var Queue
+     * @var Handler
      */
-    private $queue;
+    private $handler;
 
     /**
      * @var Redis
@@ -37,13 +37,13 @@ class Processor
 
     private $callbackOnProcessNewSet;
 
-    public function __construct(Queue $queue, Backend $backend)
+    public function __construct(Backend $backend)
     {
-        $this->queue   = $queue;
         $this->backend = $backend;
+        $this->handler = new Handler();
     }
 
-    public function process()
+    public function process(Queue $queue)
     {
         $tracker = new Tracker();
 
@@ -52,22 +52,21 @@ class Processor
         }
 
         $request = new RequestSet();
-        $handler = new Handler();
         $request->rememberEnvironment();
 
-        while ($this->queue->shouldProcess() && $this->hasLock()) {
-            // gives us 10 sec to start processing which should only take a few ms...
-            $this->expireLock(10);
-
+        while ($queue->shouldProcess() && $this->hasLock()) {
             if ($this->callbackOnProcessNewSet) {
-                call_user_func($this->callbackOnProcessNewSet, $this->queue, $tracker);
+                call_user_func($this->callbackOnProcessNewSet, $queue, $tracker);
             }
 
-            $queuedRequestSets  = $this->queue->getRequestSetsToProcess();
-            $requestSetsToRetry = $this->processRequestSets($tracker, $handler, $queuedRequestSets);
-            $this->processRequestSets($tracker, $handler, $requestSetsToRetry);
+            $queuedRequestSets = $queue->getRequestSetsToProcess();
 
-            $this->queue->markRequestSetsAsProcessed();
+            if (!empty($queuedRequestSets)) {
+                $queue->markRequestSetsAsProcessed();
+
+                $requestSetsToRetry = $this->processRequestSets($tracker, $queuedRequestSets);
+                $this->processRequestSets($tracker, $requestSetsToRetry);
+            }
         }
 
         $request->restoreEnvironment();
@@ -85,38 +84,37 @@ class Processor
 
     /**
      * @param Tracker $tracker
-     * @param Handler $handler
      * @param RequestSet[] $queuedRequestSets
      * @return mixed
      */
-    private function processRequestSets(Tracker $tracker, Handler $handler, $queuedRequestSets)
+    private function processRequestSets(Tracker $tracker, $queuedRequestSets)
     {
         if (empty($queuedRequestSets)) {
             return array();
         }
 
-        $handler->init($tracker);
+        $this->handler->init($tracker);
 
         foreach ($queuedRequestSets as $index => $requestSet) {
-            $ttl = $this->getTtlToExpireWhenProcessingARequestSet($requestSet);
+            $ttl = $this->getTtlForProcessingRequestSet($requestSet);
             $this->expireLock($ttl);
 
             try {
-                $handler->process($tracker, $requestSet);
+                $this->handler->process($tracker, $requestSet);
             } catch (\Exception $e) {
                 Common::printDebug($e->getMessage());
-                $handler->onException($tracker, $requestSet, $e);
+                $this->handler->onException($tracker, $requestSet, $e);
             }
         }
 
-        $this->expireLock(10); // gives us 10 seconds to finish processing
+        $this->expireLock(120); // gives us 120 seconds to finish processing
 
-        $requestSetsToRetry = $handler->finish($tracker);
+        $requestSetsToRetry = $this->handler->finish($tracker);
 
         return $requestSetsToRetry;
     }
 
-    private function getTtlToExpireWhenProcessingARequestSet(RequestSet $requestSet)
+    private function getTtlForProcessingRequestSet(RequestSet $requestSet)
     {
         $ttl = $requestSet->getNumberOfRequests() * 2;
          // 2 seconds per request set should give it enough time to process it
@@ -129,12 +127,14 @@ class Processor
             $this->lockValue = Common::generateUniqId();
         }
 
-        return $this->backend->setIfNotExists($this->lockKey, $this->lockValue);
+        $locked = $this->backend->setIfNotExists($this->lockKey, $this->lockValue, $ttlInSeconds = 60);
+
+        return $locked;
     }
 
     private function hasLock()
     {
-        return $this->lockValue === $this->backend->get($this->lockKey);
+        return !empty($this->lockValue) && $this->lockValue === $this->backend->get($this->lockKey);
     }
 
     public function unlock()
@@ -148,7 +148,6 @@ class Processor
         if ($ttlInSeconds > 0) {
             $this->backend->expire($this->lockKey, $ttlInSeconds);
         }
-
     }
 
 }

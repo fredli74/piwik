@@ -28,11 +28,6 @@ class Handler extends Tracker\Handler
      */
     private $backend;
 
-    /**
-     * @var Queue
-     */
-    private $queue;
-
     private $isAllowedToProcessInTrackerMode = false;
 
     public function __construct()
@@ -78,13 +73,13 @@ class Handler extends Tracker\Handler
     {
         if ($queue->shouldProcess()) {
             $backend   = $this->getBackend();
-            $processor = new Processor($queue, $backend);
+            $processor = new Processor($backend);
 
-            $this->processIfNotLocked($processor);
+            $this->processIfNotLocked($processor, $queue);
         }
     }
 
-    private function processIfNotLocked(Processor $processor)
+    private function processIfNotLocked(Processor $processor, Queue $queue)
     {
         if ($processor->acquireLock()) {
 
@@ -92,7 +87,7 @@ class Handler extends Tracker\Handler
             set_time_limit(0);
 
             try {
-                $processor->process();
+                $processor->process($queue);
             } catch (Exception $e) {
                 Common::printDebug('Failed to process queue: ' . $e->getMessage());
                 // TODO how could we report errors better as the response is already sent? also monitoring ...
@@ -111,26 +106,12 @@ class Handler extends Tracker\Handler
         return $this->backend;
     }
 
-    public function setBackend($backend)
-    {
-        $this->backend = $backend;
-    }
-
     private function getQueue()
     {
-        if ($this->queue) {
-            return $this->queue;
-        }
-
         $backend = $this->getBackend();
         $queue   = Queue\Factory::makeQueue($backend);
 
         return $queue;
-    }
-
-    public function setQueue(Queue $queue)
-    {
-        $this->queue = $queue;
     }
 
 }

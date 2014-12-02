@@ -132,7 +132,7 @@ class RedisTest extends IntegrationTestCase
 
     public function test_deleteIfKeyHasValue_ShouldWork_ShouldBeAbleToDeleteARegularKey()
     {
-        $success = $this->redis->setIfNotExists($this->key, 'test');
+        $success = $this->redis->setIfNotExists($this->key, 'test', 60);
         $this->assertTrue($success);
 
         $success = $this->redis->deleteIfKeyHasValue($this->key, 'test');
@@ -141,7 +141,7 @@ class RedisTest extends IntegrationTestCase
 
     public function test_deleteIfKeyHasValue_ShouldNotWork_IfValueIsDifferent()
     {
-        $this->redis->setIfNotExists($this->key, 'test');
+        $this->redis->setIfNotExists($this->key, 'test', 60);
 
         $success = $this->redis->deleteIfKeyHasValue($this->key, 'test2');
         $this->assertFalse($success);
@@ -149,7 +149,7 @@ class RedisTest extends IntegrationTestCase
 
     public function test_setIfNotExists_ShouldWork_IfNoValueIsSetYet()
     {
-        $success = $this->redis->setIfNotExists($this->key, 'value');
+        $success = $this->redis->setIfNotExists($this->key, 'value', 60);
         $this->assertTrue($success);
     }
 
@@ -158,7 +158,7 @@ class RedisTest extends IntegrationTestCase
      */
     public function test_setIfNotExists_ShouldNotWork_IfValueIsAlreadySet()
     {
-        $success = $this->redis->setIfNotExists($this->key, 'value');
+        $success = $this->redis->setIfNotExists($this->key, 'value', 60);
         $this->assertFalse($success);
     }
 
@@ -167,7 +167,7 @@ class RedisTest extends IntegrationTestCase
      */
     public function test_setIfNotExists_ShouldAlsoNotWork_IfTryingToSetDifferentValue()
     {
-        $success = $this->redis->setIfNotExists($this->key, 'another val');
+        $success = $this->redis->setIfNotExists($this->key, 'another val', 60);
         $this->assertFalse($success);
     }
 
@@ -179,7 +179,7 @@ class RedisTest extends IntegrationTestCase
 
     public function test_get_ShouldReturnTheSetValue_IfOneIsSet()
     {
-        $this->redis->setIfNotExists($this->key, 'mytest');
+        $this->redis->setIfNotExists($this->key, 'mytest', 60);
         $value = $this->redis->get($this->key);
         $this->assertEquals('mytest', $value);
     }
@@ -190,26 +190,26 @@ class RedisTest extends IntegrationTestCase
     public function test_setIfNotExists_ShouldWork_AsSoonAsKeyWasDeleted()
     {
         $this->redis->delete($this->key);
-        $success = $this->redis->setIfNotExists($this->key, 'another val');
+        $success = $this->redis->setIfNotExists($this->key, 'another val', 60);
         $this->assertTrue($success);
     }
 
     public function test_expire_ShouldWork()
     {
-        $success = $this->redis->setIfNotExists($this->key, 'test');
+        $success = $this->redis->setIfNotExists($this->key, 'test', 60);
         $this->assertTrue($success);
 
         $success = $this->redis->expire($this->key, $seconds = 1);
         $this->assertTrue($success);
 
         // should not work as value still saved and not expired yet
-        $success = $this->redis->setIfNotExists($this->key, 'test');
+        $success = $this->redis->setIfNotExists($this->key, 'test', 60);
         $this->assertFalse($success);
 
         sleep($seconds + 1);
 
         // value is expired and should work now!
-        $success = $this->redis->setIfNotExists($this->key, 'test');
+        $success = $this->redis->setIfNotExists($this->key, 'test', 60);
         $this->assertTrue($success);
     }
 

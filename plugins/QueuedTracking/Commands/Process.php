@@ -34,7 +34,7 @@ class Process extends ConsoleCommand
 
         $backend   = Queue\Factory::makeBackend();
         $queue     = Queue\Factory::makeQueue($backend);
-        $processor = new Processor($queue, $backend);
+        $processor = new Processor($backend);
 
         $numRequestsQueued = $queue->getNumberOfRequestSetsInQueue();
 
@@ -49,7 +49,7 @@ class Process extends ConsoleCommand
             $this->setProgressCallback($processor, $output, $numRequestsQueued);
 
             try {
-                $processor->process();
+                $processor->process($queue);
                 $processor->unlock();
             } catch (\Exception $e) {
                 $processor->unlock();

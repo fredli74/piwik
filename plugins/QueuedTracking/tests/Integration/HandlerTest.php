@@ -71,8 +71,6 @@ class HandlerTest extends IntegrationTestCase
         $this->response = new Response();
         $this->handler  = new Handler();
         $this->handler->setResponse($this->response);
-        $this->handler->setBackend($this->backend);
-        $this->handler->setQueue($this->queue);
         $this->tracker  = new Tracker();
         $this->requestSet = new RequestSet();
     }
@@ -225,7 +223,7 @@ class HandlerTest extends IntegrationTestCase
 
     public function test_process_ShouldDirectlyProcessQueueOnceNumRequestsPresent_IfEnabled()
     {
-        $this->queue->setNumberOfRequestsToProcessAtSameTime(2);
+        Queue\Factory::getSettings()->numRequestsToProcess->setValue(2);
         $this->handler->enableProcessingInTrackerMode();
 
         $this->assertSame(0, $this->queue->getNumberOfRequestSetsInQueue());
@@ -256,7 +254,7 @@ class HandlerTest extends IntegrationTestCase
 
     public function test_process_ShouldNotDirectlyProcessQueue_IfAlreadyLocked()
     {
-        $processor = new Queue\Processor($this->queue, $this->backend);
+        $processor = new Queue\Processor($this->backend);
         $processor->acquireLock();
 
         $this->queue->setNumberOfRequestsToProcessAtSameTime(1);

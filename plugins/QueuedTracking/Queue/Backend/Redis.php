@@ -100,10 +100,10 @@ class Redis implements Backend
         return $this->redis->lLen($key);
     }
 
-    public function setIfNotExists($key, $value)
+    public function setIfNotExists($key, $value, $ttlInSeconds)
     {
         $this->connectIfNeeded();
-        $wasSet = $this->redis->setnx($key, $value);
+        $wasSet = $this->redis->set($key, $value, array('nx', 'ex' => $ttlInSeconds));
 
         return $wasSet;
     }

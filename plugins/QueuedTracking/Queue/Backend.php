@@ -25,7 +25,7 @@ interface Backend
 
     public function getNumValuesInList($key);
 
-    public function setIfNotExists($key, $value);
+    public function setIfNotExists($key, $value, $ttlInSeconds);
 
     public function deleteIfKeyHasValue($key, $value);
 

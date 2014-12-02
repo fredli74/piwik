@@ -89,7 +89,7 @@ class ProcessorTest extends IntegrationTestCase
 
     public function test_process_shouldDoNothing_IfQueueIsEmpty()
     {
-        $tracker = $this->processor->process();
+        $tracker = $this->processor->process($this->queue);
 
         $this->assertSame(0, $tracker->getCountOfLoggedRequests());
         $this->assertNumberOfRequestSetsLeftInQueue(0);
@@ -99,7 +99,7 @@ class ProcessorTest extends IntegrationTestCase
     {
         $this->addRequestSetsToQueue(2);
 
-        $tracker = $this->processor->process();
+        $tracker = $this->processor->process($this->queue);
 
         $this->assertSame(0, $tracker->getCountOfLoggedRequests());
         $this->assertNumberOfRequestSetsLeftInQueue(2);
@@ -139,7 +139,7 @@ class ProcessorTest extends IntegrationTestCase
     {
         $this->addRequestSetsToQueue(10);
 
-        $tracker = $this->processor->process();
+        $tracker = $this->processor->process($this->queue);
 
         $this->assertSame(0, $tracker->getCountOfLoggedRequests());
         $this->assertNumberOfRequestSetsLeftInQueue(10);
@@ -198,7 +198,7 @@ class ProcessorTest extends IntegrationTestCase
     {
         $this->assertTrue($this->processor->acquireLock());
 
-        return $this->processor->process();
+        return $this->processor->process($this->queue);
     }
 
     private function assertNumberOfRequestSetsLeftInQueue($numRequestsLeftInQueue)
@@ -229,6 +229,6 @@ class ProcessorTest extends IntegrationTestCase
 
     private function createProcessor()
     {
-        return new Processor($this->queue, $this->redis);
+        return new Processor($this->redis);
     }
 }
