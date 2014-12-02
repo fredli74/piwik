@@ -18,8 +18,18 @@ use Piwik\Plugins\QueuedTracking\Queue\Backend\Redis;
 use Exception;
 
 /**
- * This class represents a page view, tracking URL, page title and generation time.
+ * Processes all queued tracking requests. You need to acquire a lock before calling process() and unlock it afterwards!
  *
+ * eg
+ * $processor = new Processor($backend);
+ * if ($processor->acquireLock()) {
+ *    try {
+ *        $processor->process($queue);
+ *    } catch (Exception $e) {}
+ *    $processor->unlock();
+ * }
+ *
+ * It will process until there are not enough tracking requests in the queue anymore.
  */
 class Processor
 {
@@ -55,7 +65,7 @@ class Processor
         $request = new RequestSet();
         $request->rememberEnvironment();
 
-        while ($queue->shouldProcess() && $this->hasLock()) {
+        while ($queue->shouldProcess()) {
             if ($this->callbackOnProcessNewSet) {
                 call_user_func($this->callbackOnProcessNewSet, $queue, $tracker);
             }
@@ -89,10 +99,9 @@ class Processor
         $this->handler->init($tracker);
 
         foreach ($queuedRequestSets as $index => $requestSet) {
-            if (!$this->expireLockToMakeSureWeHaveLockLongEnoughForProcessingRequestSet($requestSet)) {
-                $this->handler->rollBack($tracker);
-                throw new Exception('Rolled back as we no longer have lock');
-            };
+            if (!$this->extendLockExpireToMakeSureWeCanProcessARequestSet($requestSet)) {
+                $this->forceRollbackAndThrowExceptionAsAnotherProcessMightProcessSameRequestSets($tracker);
+            }
 
             try {
                 $this->handler->process($tracker, $requestSet);
@@ -102,11 +111,8 @@ class Processor
             }
         }
 
-        if (!$this->expireLockToMakeSureWeHaveLockLongEnoughToFinishQueuedRequests($queuedRequestSets)) {
-            // force a rollback in finish, too risky another process is processing the same bunch of request sets
-            $this->handler->rollBack($tracker);
-
-            throw new Exception('Rolled back as we no longer have lock');
+        if (!$this->extendLockExpireToMakeSureWeCanFinishQueuedRequests($queuedRequestSets)) {
+            $this->forceRollbackAndThrowExceptionAsAnotherProcessMightProcessSameRequestSets($tracker);
         }
 
         if ($this->handler->hasErrors()) {
@@ -126,7 +132,11 @@ class Processor
         $this->callbackOnProcessNewSet = $callback;
     }
 
-    private function expireLockToMakeSureWeHaveLockLongEnoughToFinishQueuedRequests($queuedRequests)
+    /**
+     * @param $queuedRequests
+     * @return bool true if we still have the lock and if expire was set successfully
+     */
+    private function extendLockExpireToMakeSureWeCanFinishQueuedRequests($queuedRequests)
     {
         $ttl = count($queuedRequests) * 2;
         // in case there are 50 queued requests it gives us 100 seconds to commit/rollback and to start new batch
@@ -136,7 +146,11 @@ class Processor
         return $this->expireLock($ttl);
     }
 
-    private function expireLockToMakeSureWeHaveLockLongEnoughForProcessingRequestSet(RequestSet $requestSet)
+    /**
+     * @param RequestSet $requestSet
+     * @return bool true if we still have the lock and if expire was set successfully
+     */
+    private function extendLockExpireToMakeSureWeCanProcessARequestSet(RequestSet $requestSet)
     {
         // 2 seconds per request set should give it enough time to process it
         $ttl = $requestSet->getNumberOfRequests() * 2;
@@ -156,11 +170,6 @@ class Processor
         return $locked;
     }
 
-    private function hasLock()
-    {
-        return !empty($this->lockValue) && $this->lockValue === $this->backend->get($this->lockKey);
-    }
-
     public function unlock()
     {
         $this->backend->deleteIfKeyHasValue($this->lockKey, $this->lockValue);
@@ -174,6 +183,12 @@ class Processor
         }
 
         return false;
+    }
+
+    private function forceRollbackAndThrowExceptionAsAnotherProcessMightProcessSameRequestSets(Tracker $tracker)
+    {
+        $this->handler->rollBack($tracker);
+        throw new LockExpiredException('Rolled back as we no longer have lock or the lock was never acquired');
     }
 
 }

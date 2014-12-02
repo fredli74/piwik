@@ -9,7 +9,6 @@
 namespace Piwik\Plugins\QueuedTracking\tests\Integration\Queue;
 
 use Piwik\Plugins\QueuedTracking\tests\Framework\TestCase\IntegrationTestCase;
-use Piwik\Tracker\RequestSet;
 use Piwik\Tracker\TrackerConfig;
 use Piwik\Tracker;
 use Piwik\Plugins\QueuedTracking\Queue\Backend\Redis;
@@ -38,7 +37,7 @@ class ProcessorTest extends IntegrationTestCase
     /**
      * @var TestProcessor
      */
-    private $processor;
+    public $processor;
 
     /**
      * @var Queue
@@ -147,10 +146,14 @@ class ProcessorTest extends IntegrationTestCase
     {
         $this->addRequestSetsToQueue(10);
 
-        $tracker = $this->processor->process($this->queue);
+        try {
+            $this->processor->process($this->queue);
+            $this->fail('An expected exception was not triggered');
+        } catch (Queue\LockExpiredException $e) {
 
-        $this->assertSame(0, $tracker->getCountOfLoggedRequests());
-        $this->assertNumberOfRequestSetsLeftInQueue(10);
+            $this->assertNumberOfRequestSetsLeftInQueue(10);
+        }
+
     }
 
     public function test_process_shouldNotProcessAnything_IfRecordStatisticsIsDisabled()
@@ -203,8 +206,8 @@ class ProcessorTest extends IntegrationTestCase
     }
 
     /**
-     * @expectedException \Exception
-     * @expectedExceptionMessage Rolled back as we no longer have lock
+     * @expectedException \Piwik\Plugins\QueuedTracking\Queue\LockExpiredException
+     * @expectedExceptionMessage Rolled back
      */
     public function test_processRequestSets_ShouldThrowAnExceptionAndRollback_InCaseWeDoNoLongerHaveTheLock()
     {
@@ -276,6 +279,127 @@ class ProcessorTest extends IntegrationTestCase
         $this->processor->processRequestSets($tracker, $queuedRequestSets);
 
         $this->assertSame(17, $tracker->getCountOfLoggedRequests());
+    }
+
+    public function test_process_ShouldRetryProcessingAllRequestsWithoutTheFailedOnes()
+    {
+        $this->queue->setNumberOfRequestsToProcessAtSameTime(2);
+        // always two request sets at once will be processed
+
+        $this->queue->addRequestSet($this->buildRequestSet(1));
+        $this->queue->addRequestSet($this->buildRequestSet(5));
+
+        // the first one fails but still should process the first two and the second one
+        $this->queue->addRequestSet($this->buildRequestSetContainingError(4, 2));
+        $this->queue->addRequestSet($this->buildRequestSet(1));
+
+        // the last one fails completely
+        $this->queue->addRequestSet($this->buildRequestSet(1));
+        $this->queue->addRequestSet($this->buildRequestSetContainingError(1, 0));
+
+        // both fail
+        $this->queue->addRequestSet($this->buildRequestSetContainingError(4, 0));
+        $this->queue->addRequestSet($this->buildRequestSetContainingError(2, 0));
+
+        // the first one fails completely
+        $this->queue->addRequestSet($this->buildRequestSetContainingError(1, 0));
+        $this->queue->addRequestSet($this->buildRequestSet(4));
+
+        $this->assertNumberOfRequestSetsLeftInQueue(10);
+
+        $count = 0;
+        $this->processor->acquireLock();
+        $this->processor->setOnProcessNewRequestSetCallback(function () use (&$count) {
+            $count++;
+        });
+
+        $tracker = $this->processor->process($this->queue);
+
+        $this->assertSame(1+5+1+2+1+4, $tracker->getCountOfLoggedRequests());
+        $this->assertSame(5, $count);
+        $this->assertNumberOfRequestSetsLeftInQueue(0);
+    }
+
+    public function test_process_ShouldActuallyRetryProcessingAllRequestsWithoutTheFailedOnes()
+    {
+        $this->queue->setNumberOfRequestsToProcessAtSameTime(2);
+        // always two request sets at once will be processed
+
+        $this->queue->addRequestSet($requestSet1 = $this->buildRequestSet(1));
+        $this->queue->addRequestSet($requestSet2 = $this->buildRequestSet(5));
+
+        // the last one fails completely
+        $this->queue->addRequestSet($requestSet3 = $this->buildRequestSet(1));
+        $this->queue->addRequestSet($requestSet4 = $this->buildRequestSetContainingError(2, 0));
+
+        // the last one fails completely
+        $this->queue->addRequestSet($requestSet5 = $this->buildRequestSetContainingError(3, 0));
+        $this->queue->addRequestSet($requestSet6 = $this->buildRequestSetContainingError(1, 0));
+
+        $self = $this;
+        $forwardCallToProcessor = function ($tracker, $requestSets) use ($self) {
+            return $self->processor->processRequestSets($tracker, $requestSets);
+        };
+
+        $self->processor->acquireLock();
+
+        $mock = $this->getMock(get_class($this->processor), array('processRequestSets'), array($this->redis));
+
+        $mock->expects($this->at(0))
+             ->method('processRequestSets')
+             ->with($this->anything(), $this->callback(function ($arg) {
+                 return 2 === count($arg) && 1 === $arg[0]->getNumberOfRequests() &&  5 === $arg[1]->getNumberOfRequests();
+             }))
+            ->will($this->returnCallback($forwardCallToProcessor));
+
+        $mock->expects($this->at(1))
+             ->method('processRequestSets')
+             ->with($this->anything(), $this->equalTo(array()))
+            ->will($this->returnCallback($forwardCallToProcessor));
+
+        $mock->expects($this->at(2)) // one of them fails
+             ->method('processRequestSets')
+             ->with($this->anything(), $this->callback(function ($arg) {
+                 return 2 === count($arg) && 1 === $arg[0]->getNumberOfRequests() &&  2 === $arg[1]->getNumberOfRequests();
+             }))
+             ->will($this->returnCallback($forwardCallToProcessor));
+
+        $mock->expects($this->at(3)) // retry, this time it should work
+             ->method('processRequestSets')
+             ->with($this->anything(), $this->callback(function ($arg) {
+                 return 1 === count($arg) && 1 === $arg[0]->getNumberOfRequests();
+             }))
+            ->will($this->returnCallback($forwardCallToProcessor));
+
+        $mock->expects($this->at(4)) // both of them fails
+             ->method('processRequestSets')
+             ->with($this->anything(), $this->callback(function ($arg) {
+                 return 2 === count($arg) && 3 === $arg[0]->getNumberOfRequests() &&  1 === $arg[1]->getNumberOfRequests();
+             }))
+             ->will($this->returnCallback($forwardCallToProcessor));
+
+        $mock->expects($this->at(5))  // as both fail none should be retried
+             ->method('processRequestSets')
+             ->with($this->anything(), $this->equalTo(array()))
+             ->will($this->returnCallback($forwardCallToProcessor));
+
+        $mock->process($this->queue);
+    }
+
+    public function test_process_shouldRestoreEnvironmentAfterTrackingRequests()
+    {
+        $serverBackup = $_SERVER;
+
+        $this->queue->setNumberOfRequestsToProcessAtSameTime(1);
+        $requestSet = $this->buildRequestSet(5);
+        $requestSet->setEnvironment(array('server' => array('test' => 1)));
+        $this->queue->addRequestSet($requestSet);
+
+        $tracker = $this->lockAndProcess();
+
+        $this->assertSame(5, $tracker->getCountOfLoggedRequests());
+
+        $this->assertEquals($serverBackup, $_SERVER);
     }
 
     private function lockAndProcess()

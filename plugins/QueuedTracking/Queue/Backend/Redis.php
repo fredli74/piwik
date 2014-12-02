@@ -120,11 +120,11 @@ class Redis implements Backend
 
     public function deleteIfKeyHasValue($key, $value)
     {
-        $this->connectIfNeeded();
-
         if (empty($value)) {
             return false;
         }
+
+        $this->connectIfNeeded();
 
         // see http://redis.io/topics/distlock
         $script = 'if redis.call("GET",KEYS[1]) == ARGV[1] then
@@ -132,12 +132,16 @@ class Redis implements Backend
 else
     return 0
 end';
-
+        // ideally we would use evalSha to reduce bandwidth!
         return (bool) $this->redis->eval($script, array($key, $value), 1);
     }
 
     public function expireIfKeyHasValue($key, $value, $ttlInSeconds)
     {
+        if (empty($value)) {
+            return false;
+        }
+
         $this->connectIfNeeded();
 
         $script = 'if redis.call("GET",KEYS[1]) == ARGV[1] then
@@ -145,7 +149,7 @@ end';
 else
     return 0
 end';
-
+        // ideally we would use evalSha to reduce bandwidth!
         return (bool) $this->redis->eval($script, array($key, $value, (int) $ttlInSeconds), 1);
     }
 

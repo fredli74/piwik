@@ -10,7 +10,6 @@
 namespace Piwik\Plugins\QueuedTracking\Queue;
 
 use Piwik\Plugins\QueuedTracking\Queue;
-use Piwik\Plugins\QueuedTracking\QueuedTracking;
 use Piwik\Plugins\QueuedTracking\Settings;
 use Piwik\Tracker\SettingsStorage;
 

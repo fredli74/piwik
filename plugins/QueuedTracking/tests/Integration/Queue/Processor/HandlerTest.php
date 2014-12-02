@@ -237,7 +237,7 @@ class HandlerTest extends IntegrationTestCase
         $this->handler->rollBack($this->tracker);
         $setsToRetry = $this->handler->getRequestSetsToRetry();
 
-        $this->assertEquals($setsToRetry, array($this->buildRequestSet(4)));
+        $this->assertEquals($setsToRetry, array($requestSet));
         $this->assertSame(4, $requestSet->getNumberOfRequests());
     }
 

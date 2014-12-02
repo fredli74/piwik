@@ -34,4 +34,7 @@ try {
     echo "Unexpected error during tracking: " . $ex->getMessage() . "\n" . $ex->getTraceAsString() . "\n";
 }
 
-ob_end_flush();
+if (ob_get_level() > 1) {
+    ob_end_flush();
+}
+

@@ -199,8 +199,8 @@ class Settings extends \Piwik\Plugin\Settings
         $this->numRequestsToProcess->uiControlType = static::CONTROL_TEXT;
         $this->numRequestsToProcess->uiControlAttributes = array('size' => 3);
         $this->numRequestsToProcess->description = 'Number of requests needed to start processing queue';
-        $this->numRequestsToProcess->inlineHelp = 'Defines how many requests will be picked out of the queue and processed at once. Enter a number which is >= 1. You might want to adjust this number eg to the number of tracking requests you get per 10 seconds on average.';
-        $this->numRequestsToProcess->defaultValue = 50;
+        $this->numRequestsToProcess->inlineHelp = 'Defines how many requests will be picked out of the queue and processed at once. Enter a number which is >= 1.';
+        $this->numRequestsToProcess->defaultValue = 25;
         $this->numRequestsToProcess->validate = function ($value, $setting) {
 
             if (!is_numeric($value)) {

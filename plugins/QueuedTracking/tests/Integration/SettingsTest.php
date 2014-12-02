@@ -156,7 +156,7 @@ class SettingsTest extends IntegrationTestCase
 
     public function test_numRequestsToProcess_ShouldBe50ByDefault()
     {
-        $this->assertSame(50, $this->settings->numRequestsToProcess->getValue());
+        $this->assertSame(25, $this->settings->numRequestsToProcess->getValue());
     }
 
     public function test_numRequestsToProcess_ShouldConvertAnyValueToInteger()
