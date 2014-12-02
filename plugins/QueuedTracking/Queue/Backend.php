@@ -29,7 +29,7 @@ interface Backend
 
     public function deleteIfKeyHasValue($key, $value);
 
-    public function expire($key, $ttlInSeconds);
+    public function expireIfKeyHasValue($key, $value, $ttlInSeconds);
 
     public function get($key);
 }

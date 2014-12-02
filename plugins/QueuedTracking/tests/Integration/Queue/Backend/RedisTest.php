@@ -199,7 +199,7 @@ class RedisTest extends IntegrationTestCase
         $success = $this->redis->setIfNotExists($this->key, 'test', 60);
         $this->assertTrue($success);
 
-        $success = $this->redis->expire($this->key, $seconds = 1);
+        $success = $this->redis->expireIfKeyHasValue($this->key, 'test', $seconds = 1);
         $this->assertTrue($success);
 
         // should not work as value still saved and not expired yet
@@ -211,6 +211,15 @@ class RedisTest extends IntegrationTestCase
         // value is expired and should work now!
         $success = $this->redis->setIfNotExists($this->key, 'test', 60);
         $this->assertTrue($success);
+    }
+
+    public function test_expire_ShouldNotWorkIfValueIsDifferent()
+    {
+        $success = $this->redis->setIfNotExists($this->key, 'test', 60);
+        $this->assertTrue($success);
+
+        $success = $this->redis->expireIfKeyHasValue($this->key, 'test2', $seconds = 1);
+        $this->assertFalse($success);
     }
 
     private function assertNumberOfItemsInList($key, $expectedNumber)

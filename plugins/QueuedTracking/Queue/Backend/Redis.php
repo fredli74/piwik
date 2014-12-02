@@ -136,11 +136,17 @@ end';
         return (bool) $this->redis->eval($script, array($key, $value), 1);
     }
 
-    public function expire($key, $ttlInSeconds)
+    public function expireIfKeyHasValue($key, $value, $ttlInSeconds)
     {
         $this->connectIfNeeded();
 
-        return (bool) $this->redis->expire($key, $ttlInSeconds);
+        $script = 'if redis.call("GET",KEYS[1]) == ARGV[1] then
+    return redis.call("EXPIRE",KEYS[1], ARGV[2])
+else
+    return 0
+end';
+
+        return (bool) $this->redis->eval($script, array($key, $value, (int) $ttlInSeconds), 1);
     }
 
     public function get($key)

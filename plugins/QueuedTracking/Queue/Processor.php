@@ -63,7 +63,6 @@ class Processor
             $queuedRequestSets = $queue->getRequestSetsToProcess();
 
             if (!empty($queuedRequestSets)) {
-
                 $requestSetsToRetry = $this->processRequestSets($tracker, $queuedRequestSets);
                 $this->processRequestSets($tracker, $requestSetsToRetry);
                 $queue->markRequestSetsAsProcessed();
@@ -90,7 +89,10 @@ class Processor
         $this->handler->init($tracker);
 
         foreach ($queuedRequestSets as $index => $requestSet) {
-            $this->expireLockToMakeSureWeHaveLockLongEnoughForProcessingRequestSet($requestSet);
+            if (!$this->expireLockToMakeSureWeHaveLockLongEnoughForProcessingRequestSet($requestSet)) {
+                $this->handler->rollBack($tracker);
+                throw new Exception('Rolled back as we no longer have lock');
+            };
 
             try {
                 $this->handler->process($tracker, $requestSet);
@@ -100,9 +102,7 @@ class Processor
             }
         }
 
-        if ($this->hasLock()) { 
-            $this->expireLockToMakeSureWeHaveLockLongEnoughToFinishQueuedRequests($queuedRequestSets);
-        } else {
+        if (!$this->expireLockToMakeSureWeHaveLockLongEnoughToFinishQueuedRequests($queuedRequestSets)) {
             // force a rollback in finish, too risky another process is processing the same bunch of request sets
             $this->handler->rollBack($tracker);
 
@@ -133,7 +133,7 @@ class Processor
 
         $ttl = max($ttl, 20); // lock at least for 20 seconds
 
-        $this->expireLock($ttl);
+        return $this->expireLock($ttl);
     }
 
     private function expireLockToMakeSureWeHaveLockLongEnoughForProcessingRequestSet(RequestSet $requestSet)
@@ -142,7 +142,7 @@ class Processor
         $ttl = $requestSet->getNumberOfRequests() * 2;
         $ttl = max($ttl, 4); // lock for at least 4 seconds
 
-        $this->expireLock($ttl);
+        return $this->expireLock($ttl);
     }
 
     public function acquireLock()
@@ -170,8 +170,10 @@ class Processor
     private function expireLock($ttlInSeconds)
     {
         if ($ttlInSeconds > 0) {
-            $this->backend->expire($this->lockKey, $ttlInSeconds);
+            return $this->backend->expireIfKeyHasValue($this->lockKey, $this->lockValue, $ttlInSeconds);
         }
+
+        return false;
     }
 
 }
