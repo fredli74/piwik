@@ -17,6 +17,14 @@ use Piwik\Plugins\QueuedTracking\Queue;
 use Piwik\Plugins\QueuedTracking\Queue\Processor;
 use Piwik\Translate;
 
+class TestProcessor extends Processor {
+
+    public function processRequestSets(Tracker $tracker, $queuedRequestSets)
+    {
+        return parent::processRequestSets($tracker, $queuedRequestSets);
+    }
+}
+
 /**
  * @group QueuedTracking
  * @group Queue
@@ -28,7 +36,7 @@ class ProcessorTest extends IntegrationTestCase
 {
 
     /**
-     * @var Processor
+     * @var TestProcessor
      */
     private $processor;
 
@@ -194,6 +202,82 @@ class ProcessorTest extends IntegrationTestCase
         $this->assertSame(5, $called); // 16 / 3 = 5
     }
 
+    /**
+     * @expectedException \Exception
+     * @expectedExceptionMessage Rolled back as we no longer have lock
+     */
+    public function test_processRequestSets_ShouldThrowAnExceptionAndRollback_InCaseWeDoNoLongerHaveTheLock()
+    {
+        $queuedRequestSets = array(
+            $this->buildRequestSet(5)
+        );
+
+        $this->processor->processRequestSets($this->createTracker(), $queuedRequestSets);
+    }
+
+    public function test_processRequestSets_ShouldReturnAnEmptyArrayIfAllWereTrackerSuccessfully()
+    {
+        $tracker = $this->createTracker();
+        $queuedRequestSets = array(
+            $this->buildRequestSet(5),
+            $this->buildRequestSet(1),
+            $this->buildRequestSet(1),
+            $this->buildRequestSet(3),
+        );
+
+        $this->processor->acquireLock();
+        $requestSetsToRetry = $this->processor->processRequestSets($tracker, $queuedRequestSets);
+
+        $this->assertEquals(array(), $requestSetsToRetry);
+        $this->assertSame(5+1+1+3, $tracker->getCountOfLoggedRequests());
+    }
+
+    public function test_processRequestSets_ShouldReturnOnlyValidRequestSetsInCaseThereIsAFaultyOne()
+    {
+        $tracker = $this->createTracker();
+        $queuedRequestSets = array(
+            $requestSet1 = $this->buildRequestSet(5),
+            $requestSet2 = $this->buildRequestSet(1),
+            $requestSet3 = $this->buildRequestSetContainingError(1, 0),
+            $requestSet4 = $this->buildRequestSet(3),
+            $requestSet5 = $this->buildRequestSetContainingError(4, 2),
+        );
+
+        $this->processor->acquireLock();
+        $requestSetsToRetry = $this->processor->processRequestSets($tracker, $queuedRequestSets);
+
+        $expectedSets = array($requestSet1, $requestSet2, $requestSet4, $requestSet5);
+        $this->assertEquals($expectedSets, $requestSetsToRetry);
+
+        // verify request set 5 contains only valid ones
+        $this->assertCount(2, $requestSet5->getRequests());
+    }
+
+    public function test_processRequestSets_ShouldReturnAnEmptyArray_IfNoRequestSetsAreGiven()
+    {
+        $requestSetsToRetry = $this->processor->processRequestSets($this->createTracker(), array());
+        $this->assertEquals(array(), $requestSetsToRetry);
+
+        $requestSetsToRetry = $this->processor->processRequestSets($this->createTracker(), null);
+        $this->assertEquals(array(), $requestSetsToRetry);
+    }
+
+    public function test_processRequestSets_ShouldResetTheTrackerCounter_IfThereWasAtLeastOneFailure()
+    {
+        $tracker = $this->createTracker();
+        $tracker->setCountOfLoggedRequests(17);
+        $queuedRequestSets = array(
+            $this->buildRequestSet(4),
+            $this->buildRequestSetContainingError(1, 0),
+            $this->buildRequestSet(3),
+        );
+
+        $this->processor->acquireLock();
+        $this->processor->processRequestSets($tracker, $queuedRequestSets);
+
+        $this->assertSame(17, $tracker->getCountOfLoggedRequests());
+    }
+
     private function lockAndProcess()
     {
         $this->assertTrue($this->processor->acquireLock());
@@ -213,22 +297,14 @@ class ProcessorTest extends IntegrationTestCase
         }
     }
 
-    private function buildRequestSet($numRequests)
-    {
-        $req = new RequestSet();
-
-        $requests = array();
-        for ($index = 1; $index <= $numRequests; $index++) {
-            $requests[] = array('idsite' => $index);
-        }
-
-        $req->setRequests($requests);
-
-        return $req;
-    }
-
     private function createProcessor()
     {
-        return new Processor($this->redis);
+        return new TestProcessor($this->redis);
+    }
+
+    private function createTracker()
+    {
+        $tracker = new \Piwik\Tests\Framework\Mock\Tracker();
+        return $tracker;
     }
 }

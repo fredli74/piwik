@@ -12,7 +12,6 @@ use Piwik\Plugins\QueuedTracking\Queue\Processor\Handler;
 use Piwik\Plugins\QueuedTracking\tests\Framework\TestCase\IntegrationTestCase;
 use Piwik\Tests\Framework\Mock\Tracker;
 use Piwik\Tests\Framework\Mock\Tracker\RequestSet;
-use Piwik\Tracker\Request;
 
 class TestHandler extends Handler {
 
@@ -269,39 +268,6 @@ class HandlerTest extends IntegrationTestCase
         $this->assertEquals(array('myserver' => 0), $_SERVER);
 
         $_SERVER = $serverBackup;
-    }
-
-    private function buildRequestSet($numberOfRequestSets)
-    {
-        $requests = array();
-
-        for ($i = 0; $i < $numberOfRequestSets; $i++) {
-            $requests[] = new Request(array('idsite' => '1', 'index' => $i));
-        }
-
-        $set = new RequestSet();
-        $set->setRequests($requests);
-
-        return $set;
-    }
-
-    private function buildRequestSetContainingError($numberOfRequestSets, $indexThatShouldContainError)
-    {
-        $requests = array();
-
-        for ($i = 0; $i < $numberOfRequestSets; $i++) {
-            if ($i === $indexThatShouldContainError) {
-                $requests[] = new Request(array('idsite' => '0', 'index' => $i));
-            } else {
-                $requests[] = new Request(array('idsite' => '1', 'index' => $i));
-            }
-
-        }
-
-        $set = new RequestSet();
-        $set->setRequests($requests);
-
-        return $set;
     }
 
     private function createHandler()

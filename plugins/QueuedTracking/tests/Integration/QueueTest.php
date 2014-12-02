@@ -46,19 +46,19 @@ class QueueTest extends IntegrationTestCase
 
     public function test_internalBuildRequestsSet_ShouldReturnRequestObjects()
     {
-        $this->assertTrue($this->buildRequestSet(0) instanceof RequestSet);
-        $this->assertEquals(array(), $this->buildRequestSet(0)->getRequests());
+        $this->assertTrue($this->buildRequestSetWithIdSite(0) instanceof RequestSet);
+        $this->assertEquals(array(), $this->buildRequestSetWithIdSite(0)->getRequests());
 
-        $this->assertTrue($this->buildRequestSet(3) instanceof RequestSet);
+        $this->assertTrue($this->buildRequestSetWithIdSite(3) instanceof RequestSet);
 
         $this->assertEquals(array(
             new Request(array('idsite' => 1)),
             new Request(array('idsite' => 2)),
             new Request(array('idsite' => 3)),
-        ), $this->buildRequestSet(3)->getRequests());
+        ), $this->buildRequestSetWithIdSite(3)->getRequests());
 
-        $this->assertTrue($this->buildRequestSet(10) instanceof RequestSet);
-        $this->assertCount(10, $this->buildRequestSet(10)->getRequests());
+        $this->assertTrue($this->buildRequestSetWithIdSite(10) instanceof RequestSet);
+        $this->assertCount(10, $this->buildRequestSetWithIdSite(10)->getRequests());
     }
 
     public function test_internalBuildRequestsSet_ShouldBeAbleToSpecifyTheSiteId()
@@ -67,20 +67,20 @@ class QueueTest extends IntegrationTestCase
             new Request(array('idsite' => 2)),
             new Request(array('idsite' => 2)),
             new Request(array('idsite' => 2)),
-        ), $this->buildRequestSet(3, 2)->getRequests());
+        ), $this->buildRequestSetWithIdSite(3, 2)->getRequests());
     }
 
     public function test_internalBuildManyRequestsContainingRequests_ShouldReturnManyRequestObjects()
     {
         $this->assertEquals(array(), $this->buildManyRequestSets(0));
-        $this->assertEquals(array($this->buildRequestSet(1)), $this->buildManyRequestSets(1));
+        $this->assertEquals(array($this->buildRequestSetWithIdSite(1)), $this->buildManyRequestSets(1));
 
         $this->assertManyRequestSetsAreEqual(array(
-            $this->buildRequestSet(1),
-            $this->buildRequestSet(1, 2),
-            $this->buildRequestSet(1, 3),
-            $this->buildRequestSet(1, 4),
-            $this->buildRequestSet(1, 5),
+            $this->buildRequestSetWithIdSite(1),
+            $this->buildRequestSetWithIdSite(1, 2),
+            $this->buildRequestSetWithIdSite(1, 3),
+            $this->buildRequestSetWithIdSite(1, 4),
+            $this->buildRequestSetWithIdSite(1, 5),
         ), $this->buildManyRequestSets(5));
     }
 
@@ -92,19 +92,19 @@ class QueueTest extends IntegrationTestCase
 
     public function test_addRequestSet_ShouldBeAble_ToAddARequest()
     {
-        $this->queue->addRequestSet($this->buildRequestSet(1));
+        $this->queue->addRequestSet($this->buildRequestSetWithIdSite(1));
 
-        $this->assertManyRequestSetsAreEqual(array($this->buildRequestSet(1)), $this->queue->getRequestSetsToProcess());
+        $this->assertManyRequestSetsAreEqual(array($this->buildRequestSetWithIdSite(1)), $this->queue->getRequestSetsToProcess());
     }
 
     public function test_addRequestSet_ShouldBeAble_ToAddARequestWithManyRequests()
     {
-        $this->queue->addRequestSet($this->buildRequestSet(2));
-        $this->queue->addRequestSet($this->buildRequestSet(1));
+        $this->queue->addRequestSet($this->buildRequestSetWithIdSite(2));
+        $this->queue->addRequestSet($this->buildRequestSetWithIdSite(1));
 
         $expected = array(
-            $this->buildRequestSet(2),
-            $this->buildRequestSet(1)
+            $this->buildRequestSetWithIdSite(2),
+            $this->buildRequestSetWithIdSite(1)
         );
         $this->assertManyRequestSetsAreEqual($expected, $this->queue->getRequestSetsToProcess());
     }
@@ -177,10 +177,10 @@ class QueueTest extends IntegrationTestCase
 
     public function test_getRequestSetsToProcess_shouldReturnAllRequestsIfThereAreLessThanRequired()
     {
-        $this->queue->addRequestSet($this->buildRequestSet(2));
+        $this->queue->addRequestSet($this->buildRequestSetWithIdSite(2));
 
         $requests = $this->queue->getRequestSetsToProcess();
-        $expected = array($this->buildRequestSet(2));
+        $expected = array($this->buildRequestSetWithIdSite(2));
 
         $this->assertManyRequestSetsAreEqual($expected, $requests);
     }
@@ -217,9 +217,9 @@ class QueueTest extends IntegrationTestCase
         $this->addRequestSetsToQueue(5);
 
         $expected = array(
-            $this->buildRequestSet(1, 1),
-            $this->buildRequestSet(1, 2),
-            $this->buildRequestSet(1, 3)
+            $this->buildRequestSetWithIdSite(1, 1),
+            $this->buildRequestSetWithIdSite(1, 2),
+            $this->buildRequestSetWithIdSite(1, 3)
         );
 
         $this->assertManyRequestSetsAreEqual($expected, $this->queue->getRequestSetsToProcess());
@@ -227,8 +227,8 @@ class QueueTest extends IntegrationTestCase
         $this->queue->markRequestSetsAsProcessed();
 
         $expected = array(
-            $this->buildRequestSet(1, 4),
-            $this->buildRequestSet(1, 5)
+            $this->buildRequestSetWithIdSite(1, 4),
+            $this->buildRequestSetWithIdSite(1, 5)
         );
 
         $this->assertManyRequestSetsAreEqual($expected, $this->queue->getRequestSetsToProcess());
@@ -279,7 +279,7 @@ class QueueTest extends IntegrationTestCase
         $this->assertEquals($eState, $aState);
     }
 
-    private function buildRequestSet($numRequests, $idSite = null)
+    private function buildRequestSetWithIdSite($numRequests, $idSite = null)
     {
         $req = new RequestSet();
 
@@ -298,7 +298,7 @@ class QueueTest extends IntegrationTestCase
     {
         $requests = array();
         for ($index = 1; $index <= $numRequestSets; $index++) {
-            $requests[] = $this->buildRequestSet(1, $index);
+            $requests[] = $this->buildRequestSetWithIdSite(1, $index);
         }
 
         return $requests;
@@ -307,7 +307,7 @@ class QueueTest extends IntegrationTestCase
     private function addRequestSetsToQueue($numRequestSets)
     {
         for ($index = 1; $index <= $numRequestSets; $index++) {
-            $this->queue->addRequestSet($this->buildRequestSet(1, $index));
+            $this->queue->addRequestSet($this->buildRequestSetWithIdSite(1, $index));
         }
     }
 

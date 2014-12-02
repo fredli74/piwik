@@ -81,7 +81,7 @@ class Processor
      * @return RequestSet[]
      * @throws Exception
      */
-    private function processRequestSets(Tracker $tracker, $queuedRequestSets)
+    protected function processRequestSets(Tracker $tracker, $queuedRequestSets)
     {
         if (empty($queuedRequestSets)) {
             return array();
@@ -100,13 +100,13 @@ class Processor
             }
         }
 
-        if ($this->hasLock()) {
+        if ($this->hasLock()) { 
             $this->expireLockToMakeSureWeHaveLockLongEnoughToFinishQueuedRequests($queuedRequestSets);
         } else {
             // force a rollback in finish, too risky another process is processing the same bunch of request sets
             $this->handler->rollBack($tracker);
 
-            throw new Exception('Stopped processing queue as we no longer have lock');
+            throw new Exception('Rolled back as we no longer have lock');
         }
 
         if ($this->handler->hasErrors()) {
@@ -148,7 +148,7 @@ class Processor
     public function acquireLock()
     {
         if (!$this->lockValue) {
-            $this->lockValue = Common::generateUniqId();
+            $this->lockValue = substr(Common::generateUniqId(), 0, 12);
         }
 
         $locked = $this->backend->setIfNotExists($this->lockKey, $this->lockValue, $ttlInSeconds = 60);
