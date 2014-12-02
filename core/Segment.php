@@ -438,16 +438,11 @@ class Segment
         $orderBy = preg_replace('/'.$matchTables.'\./', 'log_inner.', $orderBy);
         $groupBy = preg_replace('/'.$matchTables.'\./', 'log_inner.', $groupBy);
 
-        $from = "(
-			SELECT
-				" . implode(",
-				", $neededFields) . "
-			FROM
-				$from
-			WHERE
-				$where
-			GROUP BY log_visit.idvisit
-				) AS log_inner";
+        $innerSelect = implode(", ", $neededFields);
+        $innerGroupBy = 'log_visit.idvisit';
+        $innerOrderBy = false;
+        $innerQuery = $this->buildSelectQuery($innerSelect, $from, $where, $innerOrderBy, $innerGroupBy);
+        $from = "( $innerQuery ) AS log_inner";
 
         $where = false;
         $query = $this->buildSelectQuery($select, $from, $where, $orderBy, $groupBy);

@@ -453,4 +453,43 @@ class SegmentTest extends IntegrationTestCase
         }
         $this->fail('Expected exception not raised');
     }
+
+
+    public function testGetSelectQueryJoinConversionOnVisit_withInnerLimit()
+    {
+        $select = 'log_visit.*';
+        $from = 'log_visit';
+        $where = 'log_visit.idvisit = ?';
+        $bind = array(1);
+        $orderBy = 'log_visit.order_by_field';
+        $groupBy = false;
+
+        $segment = 'visitConvertedGoalId==1';
+        $segment = new Segment($segment, $idSites = array());
+
+        $query = $segment->getSelectQuery($select, $from, $where, $bind, $orderBy, $groupBy);
+
+        $expected = array(
+            "sql"  => "
+                SELECT
+                    log_inner.*
+                FROM
+                    (
+                SELECT
+                    log_visit.*
+                FROM
+                    " . Common::prefixTable('log_visit') . " AS log_visit
+                    LEFT JOIN " . Common::prefixTable('log_conversion') . " AS log_conversion ON log_conversion.idvisit = log_visit.idvisit
+                WHERE
+                    ( log_visit.idvisit = ? )
+                    AND
+                    ( log_conversion.idgoal = ? )
+                GROUP BY log_visit.idvisit
+                    ) AS log_inner
+                ORDER BY log_inner.order_by_field",
+            "bind" => array(1, 1));
+
+        $this->assertEquals($this->_filterWhitsSpaces($expected), $this->_filterWhitsSpaces($query));
+    }
+
 }
