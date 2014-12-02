@@ -26,11 +26,6 @@ class TestHandler extends Handler {
         $this->handlerDb = $db;
     }
 
-    public function setHasError()
-    {
-        $this->hasError = true;
-    }
-
     public function getTransactionId()
     {
         return $this->transactionId;
@@ -80,33 +75,20 @@ class HandlerTest extends UnitTestCase
         $this->assertTrue($this->db->beganTransaction);
     }
 
-    public function test_finish_ShouldCommitTransaction_IfThereWasNoError()
+    public function test_commit_ShouldCommitTransaction()
     {
         $this->handler->init($this->tracker);
 
-        $this->handler->finish($this->tracker);
+        $this->handler->commit($this->tracker);
 
         $this->assertEquals($this->transactionId, $this->db->commitTransactionId);
         $this->assertFalse($this->db->rollbackTransactionId);
     }
 
-    public function test_forceARollback_ShouldRollbackTransaction_InFinish()
+    public function test_rollback_ShouldRollbackTransaction()
     {
         $this->handler->init($this->tracker);
-        $this->handler->forceARollback();
-
-        $this->handler->finish($this->tracker);
-
-        $this->assertEquals($this->transactionId, $this->db->rollbackTransactionId);
-        $this->assertFalse($this->db->commitTransactionId);
-    }
-
-    public function test_onException_ShouldForceARollbackTransaction()
-    {
-        $this->handler->init($this->tracker);
-        $this->handler->onException(new Tracker\RequestSet(), new \Exception('test'));
-
-        $this->handler->finish($this->tracker);
+        $this->handler->rollBack($this->tracker);
 
         $this->assertEquals($this->transactionId, $this->db->rollbackTransactionId);
         $this->assertFalse($this->db->commitTransactionId);

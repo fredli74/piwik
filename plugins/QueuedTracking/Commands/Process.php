@@ -24,7 +24,8 @@ class Process extends ConsoleCommand
     protected function configure()
     {
         $this->setName('queuedtracking:process');
-        $this->setDescription('Processes all queued tracking requests in case there are enough requests in the queue and in case they are not already in process by another script.');
+        $this->setDescription('Processes all queued tracking requests in case there are enough requests in the queue and in case they are not already in process by another script. To keep track of the queue use the <comment>--verbose</comment> option or execute the <comment>queuedtracking:monitor</comment> command.');
+        $this->setHelp('Use the <comment>--verbose</comment> parameter if you want to keep track of the live state of the queue while it is being processed. This slows down the tracking performance a tiny bit therefore it is disabled by default and it should not be used when the command is executed as a cronjob. You can still keep track of the queue by using the <comment>queuedtracking:monitor</comment> command if needed.');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
@@ -46,7 +47,9 @@ class Process extends ConsoleCommand
         } else {
             $output->writeln("<info>Starting to process $numRequestsQueued request sets, this can take a while</info>");
 
-            $this->setProgressCallback($processor, $output, $numRequestsQueued);
+            if ($input->getOption('verbose')) {
+                $this->setProgressCallback($processor, $output, $numRequestsQueued);
+            }
 
             try {
                 $processor->process($queue);

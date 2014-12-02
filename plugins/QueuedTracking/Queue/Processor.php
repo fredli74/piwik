@@ -15,6 +15,7 @@ use Piwik\Tracker\RequestSet;
 use Piwik\Plugins\QueuedTracking\Queue;
 use Piwik\Plugins\QueuedTracking\Queue\Processor\Handler;
 use Piwik\Plugins\QueuedTracking\Queue\Backend\Redis;
+use Exception;
 
 /**
  * This class represents a page view, tracking URL, page title and generation time.
@@ -65,7 +66,6 @@ class Processor
 
                 $requestSetsToRetry = $this->processRequestSets($tracker, $queuedRequestSets);
                 $this->processRequestSets($tracker, $requestSetsToRetry);
-
                 $queue->markRequestSetsAsProcessed();
             }
         }
@@ -76,17 +76,10 @@ class Processor
     }
 
     /**
-     * @param \Callable $callback
-     */
-    public function setOnProcessNewRequestSetCallback($callback)
-    {
-        $this->callbackOnProcessNewSet = $callback;
-    }
-
-    /**
-     * @param Tracker $tracker
-     * @param RequestSet[] $queuedRequestSets
-     * @return mixed
+     * @param  Tracker $tracker
+     * @param  RequestSet[] $queuedRequestSets
+     * @return RequestSet[]
+     * @throws Exception
      */
     private function processRequestSets(Tracker $tracker, $queuedRequestSets)
     {
@@ -97,34 +90,59 @@ class Processor
         $this->handler->init($tracker);
 
         foreach ($queuedRequestSets as $index => $requestSet) {
-            $ttl = $this->getTtlForProcessingRequestSet($requestSet);
-            $this->expireLock($ttl);
+            $this->expireLockToMakeSureWeHaveLockLongEnoughForProcessingRequestSet($requestSet);
 
             try {
                 $this->handler->process($tracker, $requestSet);
             } catch (\Exception $e) {
-                Common::printDebug($e->getMessage());
+                Common::printDebug('Failed to process a queued request set' . $e->getMessage());
                 $this->handler->onException($requestSet, $e);
             }
         }
 
         if ($this->hasLock()) {
-            $this->expireLock(120); // gives us 120 seconds to finish processing
+            $this->expireLockToMakeSureWeHaveLockLongEnoughToFinishQueuedRequests($queuedRequestSets);
         } else {
-            // force a rollback in finish, too risky another process is processing the same?
-            $this->handler->forceARollback();
+            // force a rollback in finish, too risky another process is processing the same bunch of request sets
+            $this->handler->rollBack($tracker);
+
+            throw new Exception('Stopped processing queue as we no longer have lock');
         }
 
-        $requestSetsToRetry = $this->handler->finish($tracker);
+        if ($this->handler->hasErrors()) {
+            $this->handler->rollBack($tracker);
+        } else {
+            $this->handler->commit();
+        }
 
-        return $requestSetsToRetry;
+        return $this->handler->getRequestSetsToRetry();
     }
 
-    private function getTtlForProcessingRequestSet(RequestSet $requestSet)
+    /**
+     * @param \Callable $callback
+     */
+    public function setOnProcessNewRequestSetCallback($callback)
     {
+        $this->callbackOnProcessNewSet = $callback;
+    }
+
+    private function expireLockToMakeSureWeHaveLockLongEnoughToFinishQueuedRequests($queuedRequests)
+    {
+        $ttl = count($queuedRequests) * 2;
+        // in case there are 50 queued requests it gives us 100 seconds to commit/rollback and to start new batch
+
+        $ttl = max($ttl, 20); // lock at least for 20 seconds
+
+        $this->expireLock($ttl);
+    }
+
+    private function expireLockToMakeSureWeHaveLockLongEnoughForProcessingRequestSet(RequestSet $requestSet)
+    {
+        // 2 seconds per request set should give it enough time to process it
         $ttl = $requestSet->getNumberOfRequests() * 2;
-         // 2 seconds per request set should give it enough time to process it
-        return $ttl;
+        $ttl = max($ttl, 4); // lock for at least 4 seconds
+
+        $this->expireLock($ttl);
     }
 
     public function acquireLock()

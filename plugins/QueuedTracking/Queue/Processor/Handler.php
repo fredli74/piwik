@@ -20,8 +20,8 @@ use Piwik\Url;
 class Handler
 {
     protected $transactionId;
-    protected $hasError = false;
 
+    private $hasError = false;
     private $requestSetsToRetry = array();
     private $count = 0;
     private $numTrackedRequestsBeginning = 0;
@@ -51,8 +51,7 @@ class Handler
     public function onException(RequestSet $requestSet, Exception $e)
     {
         // todo: how do we want to handle DbException or RedisException?
-
-        $this->forceARollback();
+        $this->hasError = true;
 
         if ($this->count > 0) {
             // remove the first one that failed and all following (standard bulk tracking behavior)
@@ -62,26 +61,29 @@ class Handler
         }
     }
 
-    public function forceARollback()
+    public function hasErrors()
     {
-        $this->hasError = true;
+        return $this->hasError;
+    }
+
+    public function rollBack(Tracker $tracker)
+    {
+        $tracker->setCountOfLoggedRequests($this->numTrackedRequestsBeginning);
+        $this->getDb()->rollBack($this->transactionId);
     }
 
     /**
-     * @param Tracker $tracker
      * @return RequestSet[]
      */
-    public function finish(Tracker $tracker)
+    public function getRequestSetsToRetry()
     {
-        if ($this->hasError) {
-            $tracker->setCountOfLoggedRequests($this->numTrackedRequestsBeginning);
+        return $this->requestSetsToRetry;
+    }
 
-            $this->getDb()->rollBack($this->transactionId);
-            return $this->requestSetsToRetry;
-        }
-
+    public function commit()
+    {
         $this->getDb()->commit($this->transactionId);
-        return array();
+        $this->requestSetsToRetry = array();
     }
 
     protected function getDb()
