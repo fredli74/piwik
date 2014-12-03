@@ -48,8 +48,12 @@ class Monitor extends ConsoleCommand
             $settings = null;
 
             while (1) {
-                $message = sprintf('%s request sets left in queue        ',
-                                   $queue->getNumberOfRequestSetsInQueue());
+                $memory = $backend->getMemoryStats(); // I know this will only work with redis currently as it is not defined in backend interface etc. needs to be refactored once we add another backend
+
+                $message = sprintf('%s request sets left in queue. %s used memory (%s peak)        ',
+                                   $queue->getNumberOfRequestSetsInQueue(),
+                                   $memory['used_memory_human'],
+                                   $memory['used_memory_peak_human']);
                 $output->write("\x0D");
                 $output->write($message);
                 sleep(2);

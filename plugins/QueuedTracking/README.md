@@ -2,13 +2,16 @@
 
 ## Description
 
-This plugin writes all tracking requests into a [Redis](http://redis.io/) queue instead of directly into the database which is useful 
-if you have many requests per second and your server cannot track all of them directly. It is also useful if you experience
-peaks sometimes. Writing a tracking request into the queue is very fast (a few milliseconds) compared to a regular one that 
-takes multiple hundreds milliseconds. The queue makes sure to process the tracking requests whenever possible.
+This plugin writes all tracking requests into a [Redis](http://redis.io/) instance instead of directly into the database. 
+This is useful if you have too many requests per second and your server cannot handle all of them directly (eg too many connections in nginx or MySQL). 
+It is also useful if you experience peaks sometimes. Those peaks can be handled much better by using this queue. 
+Writing a tracking request into the queue is very fast (a few milliseconds) compared to a regular tracking request that 
+takes multiple hundreds milliseconds. The queue makes sure to process the tracking requests whenever possible even if it may
+take a while to process all requests within the queue.
 
 *This plugin is currently BETA and there might be issues causing not tracked requests, wrongly tracked requests or duplicated tracked requests.*
 
+Have a look at the FAQ for more information.
 
 ## FAQ
 

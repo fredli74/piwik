@@ -264,5 +264,14 @@ class RedisTest extends IntegrationTestCase
         $this->assertTrue(version_compare($versionNumber, '2.8.0') >= 0);
     }
 
+    public function test_getMemoryStats_shouldReturnMemoryInformation()
+    {
+        $memory = $this->createRedisBackend()->getMemoryStats();
+
+        $this->assertArrayHasKey('used_memory_human', $memory);
+        $this->assertArrayHasKey('used_memory_peak_human', $memory);
+        $this->assertNotEmpty($memory['used_memory_human']);
+    }
+
 
 }

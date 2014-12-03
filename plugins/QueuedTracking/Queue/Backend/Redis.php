@@ -57,6 +57,15 @@ class Redis implements Backend
         return $version;
     }
 
+    public function getMemoryStats()
+    {
+        $this->connectIfNeeded();
+
+        $memory = $this->redis->info('memory');
+
+        return $memory;
+    }
+
     public function appendValuesToList($key, $values)
     {
         $this->connectIfNeeded();
