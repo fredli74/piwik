@@ -557,7 +557,7 @@ class SegmentTest extends IntegrationTestCase
                     AND
                     (
                         ( log_link_visit_action.idaction_url IN
-                            (SELECT idaction FROM piwiktests_log_action WHERE ( name LIKE CONCAT('%', ?, '%') AND type = 1 ))
+                            (SELECT idaction FROM " . Common::prefixTable('log_action') . " WHERE ( name LIKE CONCAT('%', ?, '%') AND type = 1 ))
                         )
                     )
                 ORDER BY log_visit.order_by_field

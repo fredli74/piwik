@@ -710,7 +710,6 @@ class API extends \Piwik\Plugin\API
 				" . $subQuery['sql'] . "
 				$sqlLimit
 			) AS sub
-			GROUP BY $groupBy
 			ORDER BY $orderByParent
 		";
         try {
