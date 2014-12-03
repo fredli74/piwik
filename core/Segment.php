@@ -449,7 +449,7 @@ class Segment
         // Wrapped query
         $innerOrderBy = $orderBy;
         $innerSelect = implode(", ", $neededFields);
-        $innerGroupBy = $groupBy;
+        $innerGroupBy = false;
 
         // Main query
         $select = preg_replace('/'.$matchTables.'\./', 'log_inner.', $select);
