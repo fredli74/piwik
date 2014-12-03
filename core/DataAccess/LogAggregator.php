@@ -310,7 +310,7 @@ class LogAggregator
             $orderBy = '`' . Metrics::INDEX_NB_VISITS . '` DESC';
         }
 
-        $query = $this->generateQuery($select, $from, $where, $groupBy, $orderBy);
+        $query = $this->generateQueryGroupByIdVisit($select, $from, $where, $groupBy, $orderBy);
 
         if ($rankingQuery) {
             unset($availableMetrics[Metrics::INDEX_MAX_ACTIONS]);

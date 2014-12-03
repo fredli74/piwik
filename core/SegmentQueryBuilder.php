@@ -261,10 +261,13 @@ class SegmentQueryBuilder
         $innerSelect = implode(", ", $neededFields);
         $innerGroupBy = false;
         // If the main query is doing some Aggregation, then we must GROUP BY the sub-query
+
+        // OMG confusing, FIXME
+        if (!$this->queryIsSelectingAllRows) {
+            $innerGroupBy = 'log_visit.idvisit';
+        }
         if( $innerQueryGroupBy ) {
             $innerGroupBy = $innerQueryGroupBy;
-        } else if (!$this->queryIsSelectingAllRows) {
-            $innerGroupBy = 'log_visit.idvisit';
         }
 
         $select = preg_replace('/'.$matchTables.'\./', 'log_inner.', $select);
@@ -275,7 +278,6 @@ class SegmentQueryBuilder
             throw new Exception("Cannot create a predictable SQL query with a LIMIT but no ORDER BY. Expected to get ORDER BY.");
         }
 
-        //TODO GROUP BY log_visit.idvisit
         $innerQuery = $this->buildSelectQuery($innerSelect, $from, $where, $innerOrderBy, $innerGroupBy, $limit);
         $from = "( $innerQuery ) AS log_inner";
 

@@ -411,10 +411,11 @@ class SegmentTest extends IntegrationTestCase
         $orderBy = false;
         $groupBy = 'log_visit.group_by_field';
 
-        $segment = 'visitConvertedGoalId==1;visitServerHour==12;customVariablePageName1==Test';
+        $segment = 'visitServerHour==12;customVariablePageName1==Test';
         $segment = new Segment($segment, $idSites = array());
 
-        $query = $segment->getSelectQuery($select, $from, $where, $bind, $orderBy, $groupBy);
+        // using getSelectQueryNoAggregation means the inner query won't be grouped by log_visit.idvisit
+        $query = $segment->getSelectQueryNoAggregation($select, $from, $where, $bind, $orderBy, $groupBy);
 
         $expected = array(
             "sql"  => "
@@ -427,13 +428,11 @@ class SegmentTest extends IntegrationTestCase
                 FROM
                     " . Common::prefixTable('log_visit') . " AS log_visit
                     LEFT JOIN " . Common::prefixTable('log_link_visit_action') . " AS log_link_visit_action ON log_link_visit_action.idvisit = log_visit.idvisit
-                    LEFT JOIN " . Common::prefixTable('log_conversion') . " AS log_conversion ON log_conversion.idlink_va = log_link_visit_action.idlink_va AND log_conversion.idsite = log_link_visit_action.idsite
                 WHERE
-                     log_conversion.idgoal = ? AND HOUR(log_visit.visit_last_action_time) = ? AND log_link_visit_action.custom_var_k1 = ?
-                GROUP BY log_visit.group_by_field
+                     HOUR(log_visit.visit_last_action_time) = ? AND log_link_visit_action.custom_var_k1 = ?
                     ) AS log_inner
                 GROUP BY log_inner.group_by_field",
-            "bind" => array(1, 12, 'Test'));
+            "bind" => array(12, 'Test'));
 
         $this->assertEquals($this->_filterWhiteSpaces($expected), $this->_filterWhiteSpaces($query));
     }
