@@ -155,6 +155,14 @@ class LogAggregator
         return $query;
     }
 
+    public function generateQueryGroupByIdVisit($select, $from, $where, $groupBy, $orderBy)
+    {
+        $groupByInner = 'log_visit.idvisit';
+        $bind = $this->getGeneralQueryBindParams();
+        $query = $this->segment->getSelectQueryNoAggregation($select, $from, $where, $bind, $orderBy, $groupBy, $limit = false, $groupByInner);
+        return $query;
+    }
+
     protected function getVisitsMetricFields()
     {
         return array(

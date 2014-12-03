@@ -17,12 +17,12 @@ class SegmentQueryBuilder
     {
         $this->segmentExpression = $segmentExpression;
 
-        $this->queryIsAggregating = true;
+        $this->queryIsSelectingAllRows = false;
     }
 
-    public function markQueryAsNonAggregating()
+    public function markQueryAsSelectAll()
     {
-        $this->queryIsAggregating = false;
+        $this->queryIsSelectingAllRows = true;
     }
 
     /**
@@ -36,7 +36,7 @@ class SegmentQueryBuilder
      * @return array
      * @throws Exception
      */
-    public function makeQuery($select, $from, $where, $bind, $orderBy, $groupBy, $limit)
+    public function makeQuery($select, $from, $where, $bind, $orderBy, $groupBy, $limit, $groupByInnerQuery)
     {
         if (!is_array($from)) {
             $from = array($from);
@@ -69,7 +69,7 @@ class SegmentQueryBuilder
         }
 
         if ($joinWithSubSelect) {
-            $sql = $this->buildWrappedSelectQuery($select, $from, $where, $orderBy, $groupBy, $limit);
+            $sql = $this->buildWrappedSelectQuery($select, $from, $where, $orderBy, $groupBy, $limit, $groupByInnerQuery);
         } else {
             $sql = $this->buildSelectQuery($select, $from, $where, $orderBy, $groupBy, $limit);
         }
@@ -246,7 +246,7 @@ class SegmentQueryBuilder
      * @throws Exception
      * @return string
      */
-    private function buildWrappedSelectQuery($select, $from, $where, $orderBy, $groupBy, $limit)
+    private function buildWrappedSelectQuery($select, $from, $where, $orderBy, $groupBy, $limit, $innerQueryGroupBy)
     {
         $matchTables = "(log_visit|log_conversion_item|log_conversion|log_action)";
         preg_match_all("/". $matchTables ."\.[a-z0-9_\*]+/", $select, $matches);
@@ -261,8 +261,10 @@ class SegmentQueryBuilder
         $innerSelect = implode(", ", $neededFields);
         $innerGroupBy = false;
         // If the main query is doing some Aggregation, then we must GROUP BY the sub-query
-        if( $this->queryIsAggregating ) {
-            $innerGroupBy = $groupBy;
+        if( $innerQueryGroupBy ) {
+            $innerGroupBy = $innerQueryGroupBy;
+        } else if (!$this->queryIsSelectingAllRows) {
+            $innerGroupBy = 'log_visit.idvisit';
         }
 
         $select = preg_replace('/'.$matchTables.'\./', 'log_inner.', $select);

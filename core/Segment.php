@@ -60,11 +60,6 @@ class Segment
     protected $segmentExpression = null;
 
     /**
-     * Truncate the Segments to 32k bytes
-     */
-    const SEGMENT_TRUNCATE_LIMIT = 32000;
-
-    /**
      * @var string
      */
     protected $string = null;
@@ -105,9 +100,6 @@ class Segment
      */
     protected function initializeSegment($string, $idSites)
     {
-        // As a preventive measure, we restrict the filter size to a safe limit
-        $string = substr($string, 0, self::SEGMENT_TRUNCATE_LIMIT);
-
         $this->string  = $string;
         $this->idSites = $idSites;
         $segmentExpression = new SegmentExpression($string);
@@ -218,11 +210,11 @@ class Segment
         return md5($normalizedSegmentString);
     }
 
-    public function getSelectQueryNoAggregation($select, $from, $where = false, $bind = array(), $orderBy = false, $groupBy = false, $limit = false)
+    public function getSelectQueryNoAggregation($select, $from, $where = false, $bind = array(), $orderBy = false, $groupBy = false, $limit = false, $innerQueryGroupBy = false)
     {
         $builder = new SegmentQueryBuilder($this->segmentExpression);
-        $builder->markQueryAsNonAggregating();
-        return $builder->makeQuery($select, $from, $where, $bind, $orderBy, $groupBy, $limit);
+        $builder->markQueryAsSelectAll();
+        return $builder->makeQuery($select, $from, $where, $bind, $orderBy, $groupBy, $limit, $innerQueryGroupBy);
     }
 
     /**
@@ -239,8 +231,9 @@ class Segment
      */
     public function getSelectQuery($select, $from, $where = false, $bind = array(), $orderBy = false, $groupBy = false, $limit = false)
     {
+        $innerQueryGroupBy = false;
         $builder = new SegmentQueryBuilder($this->segmentExpression);
-        return $builder->makeQuery($select, $from, $where, $bind, $orderBy, $groupBy, $limit);
+        return $builder->makeQuery($select, $from, $where, $bind, $orderBy, $groupBy, $limit, $innerQueryGroupBy);
     }
 
 

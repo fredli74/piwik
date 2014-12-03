@@ -10,6 +10,9 @@ namespace Piwik\Tests\Unit;
 
 use Piwik\RankingQuery;
 
+/**
+ * @group RankingQueryTest
+ */
 class RankingQueryTest extends \PHPUnit_Framework_TestCase
 {
     /**
@@ -137,7 +140,7 @@ class RankingQueryTest extends \PHPUnit_Framework_TestCase
      * @param string $innerQuerySql
      * @param string $expected
      */
-    private function checkQuery($rankingQuery, $innerQuerySql, $expected)
+    private function checkQuery(RankingQuery $rankingQuery, $innerQuerySql, $expected)
     {
         $query = $rankingQuery->generateQuery($innerQuerySql);
 
