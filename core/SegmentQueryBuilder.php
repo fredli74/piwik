@@ -43,6 +43,8 @@ class SegmentQueryBuilder
         }
 
         if (!$this->segmentExpression->isEmpty()) {
+
+            // Note: $groupByInnerQuery should be set here automatically?
             $this->segmentExpression->parseSubExpressionsIntoSqlExpressions($from);
 
             $joins = $this->generateJoins($from);
