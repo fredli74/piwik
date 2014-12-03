@@ -475,7 +475,7 @@ class API extends \Piwik\Plugin\API
         $groupBy = "log_visit.idvisitor";
 
         $segment = new Segment($segment, $idSite);
-        $queryInfo = $segment->getSelectQuery($select, $from, $where, $whereBind, $orderBy, $groupBy);
+        $queryInfo = $segment->getSelectQueryNoAggregation($select, $from, $where, $whereBind, $orderBy, $groupBy);
 
         $sql = "SELECT sub.idvisitor, sub.visit_last_action_time FROM ({$queryInfo['sql']}) as sub
                  WHERE $visitLastActionTimeCondition
@@ -700,7 +700,7 @@ class API extends \Piwik\Plugin\API
         $groupBy = "log_visit.idvisit";
         $limit = $countVisitorsToFetch >= 1 ? $countVisitorsToFetch : false;
 
-        $subQuery = $segment->getSelectQuery($select, $from, $where, $whereBind, $orderBy, $groupBy, $limit);
+        $subQuery = $segment->getSelectQueryNoAggregation($select, $from, $where, $whereBind, $orderBy, $groupBy, $limit);
 
         $sqlLimit = !empty($limit) ? " LIMIT 0, " . (int)$limit : "";
 

@@ -211,6 +211,7 @@ class SegmentTest extends IntegrationTestCase
                     ( log_visit.idvisit = ? )
                     AND
                     ( log_link_visit_action.custom_var_k1 = ? AND log_visit.visitor_returning = ? )
+                GROUP BY log_visit.idvisit
                     ) AS log_inner
                 GROUP BY log_inner.idvisit",
             "bind" => array(1, 'Test', 0));
@@ -303,6 +304,7 @@ class SegmentTest extends IntegrationTestCase
                     ( log_visit.idvisit = ? )
                     AND
                     ( log_conversion.idgoal = ? )
+                GROUP BY log_visit.idvisit
                     ) AS log_inner
                 GROUP BY log_inner.idvisit",
             "bind" => array(1, 1));
@@ -428,6 +430,7 @@ class SegmentTest extends IntegrationTestCase
                     LEFT JOIN " . Common::prefixTable('log_conversion') . " AS log_conversion ON log_conversion.idlink_va = log_link_visit_action.idlink_va AND log_conversion.idsite = log_link_visit_action.idsite
                 WHERE
                      log_conversion.idgoal = ? AND HOUR(log_visit.visit_last_action_time) = ? AND log_link_visit_action.custom_var_k1 = ?
+                GROUP BY log_visit.group_by_field
                     ) AS log_inner
                 GROUP BY log_inner.group_by_field",
             "bind" => array(1, 12, 'Test'));
@@ -461,7 +464,7 @@ class SegmentTest extends IntegrationTestCase
     }
 
 
-    public function testGetSelectQueryJoinConversionOnVisit_withInnerLimit()
+    public function test_getSelectQueryNoAggregation_joinConversionOnVisit_withInnerLimit()
     {
         $select = 'log_visit.*';
         $from = 'log_visit';
@@ -474,7 +477,7 @@ class SegmentTest extends IntegrationTestCase
         $segment = 'visitConvertedGoalId==1';
         $segment = new Segment($segment, $idSites = array());
 
-        $query = $segment->getSelectQuery($select, $from, $where, $bind, $orderBy, $groupBy, $limit);
+        $query = $segment->getSelectQueryNoAggregation($select, $from, $where, $bind, $orderBy, $groupBy, $limit);
 
         $expected = array(
             "sql"  => "
@@ -525,7 +528,7 @@ class SegmentTest extends IntegrationTestCase
         $segment->getSelectQuery($select, $from, $where, $bind, $orderBy, $groupBy, $limit);
     }
 
-    public function test_getSelectQuery_withJoinConversionOnLinkVisitAction()
+    public function test_getSelectQueryNoAggregation_withJoinConversionOnLinkVisitAction()
     {
 
         $select = 'log_visit.*';
@@ -539,7 +542,7 @@ class SegmentTest extends IntegrationTestCase
         $bind = array(1);
         $segment = new Segment($segment, $idSites = array());
 
-        $query = $segment->getSelectQuery($select, $from, $where, $bind, $orderBy, $groupBy, $limit);
+        $query = $segment->getSelectQueryNoAggregation($select, $from, $where, $bind, $orderBy, $groupBy, $limit);
 
         $expected = array(
             "sql"  => "

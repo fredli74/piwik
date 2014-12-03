@@ -46,6 +46,13 @@ class SegmentExpression
         $this->tree = $this->parseTree();
     }
 
+
+    public function isEmpty()
+    {
+        return count( $this->tree ) == 0;
+    }
+
+
     protected $joins = array();
     protected $valuesBind = array();
     protected $parsedTree = array();
