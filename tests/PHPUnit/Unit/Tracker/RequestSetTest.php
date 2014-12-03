@@ -377,7 +377,7 @@ class RequestSetTest extends UnitTestCase
         $requests = $requestSet->getRequests();
         $this->assertTrue($requests[0]->isEmptyRequest());
         $this->assertEquals(array('url' => 'mytesturl'), $requests[0]->getParams());
-        $this->assertEmpty($_SERVER['HTTP_REFERER']);
+        $this->assertTrue(empty($_SERVER['HTTP_REFERER']));
     }
 
     public function test_getRedirectUrl_ShouldReturnEmptyString_IfNoUrlSet()
