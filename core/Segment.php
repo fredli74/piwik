@@ -433,17 +433,12 @@ class Segment
      */
     private function buildWrappedSelectQuery($select, $from, $where, $orderBy, $groupBy, $limit)
     {
-        if(empty($groupBy)) {
-            throw new Exception("Expected to get a GROUP BY to build the Wrapped query.");
-        }
-
         $matchTables = "(log_visit|log_conversion_item|log_conversion|log_action)";
         preg_match_all("/". $matchTables ."\.[a-z0-9_\*]+/", $select, $matches);
         $neededFields = array_unique($matches[0]);
 
         if (count($neededFields) == 0) {
-            throw new Exception("No needed fields found in select expression. "
-                . "Please use a table prefix.");
+            throw new Exception("No needed fields found in select expression. Please use a table prefix.");
         }
 
         // Wrapped query
@@ -451,7 +446,6 @@ class Segment
         $innerSelect = implode(", ", $neededFields);
         $innerGroupBy = false;
 
-        // Main query
         $select = preg_replace('/'.$matchTables.'\./', 'log_inner.', $select);
         $orderBy = preg_replace('/'.$matchTables.'\./', 'log_inner.', $orderBy);
         $groupBy = preg_replace('/'.$matchTables.'\./', 'log_inner.', $groupBy);
