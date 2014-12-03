@@ -187,11 +187,13 @@ class SegmentTest extends IntegrationTestCase
         $from = 'log_visit';
         $where = 'log_visit.idvisit = ?';
         $bind = array(1);
+        $orderBy = false;
+        $groupBy = 'log_visit.idvisit';
 
         $segment = 'customVariablePageName1==Test;visitorType==new';
         $segment = new Segment($segment, $idSites = array());
 
-        $query = $segment->getSelectQuery($select, $from, $where, $bind);
+        $query = $segment->getSelectQuery($select, $from, $where, $bind, $orderBy, $groupBy);
 
         $expected = array(
             "sql"  => "
@@ -210,7 +212,8 @@ class SegmentTest extends IntegrationTestCase
                     AND
                     ( log_link_visit_action.custom_var_k1 = ? AND log_visit.visitor_returning = ? )
                 GROUP BY log_visit.idvisit
-                    ) AS log_inner",
+                    ) AS log_inner
+                GROUP BY log_inner.idvisit",
             "bind" => array(1, 'Test', 0));
 
         $this->assertEquals($this->_filterWhiteSpaces($expected), $this->_filterWhiteSpaces($query));
@@ -278,11 +281,13 @@ class SegmentTest extends IntegrationTestCase
         $from = 'log_visit';
         $where = 'log_visit.idvisit = ?';
         $bind = array(1);
+        $orderBy = false;
+        $groupBy = 'log_visit.idvisit';
 
         $segment = 'visitConvertedGoalId==1';
         $segment = new Segment($segment, $idSites = array());
 
-        $query = $segment->getSelectQuery($select, $from, $where, $bind);
+        $query = $segment->getSelectQuery($select, $from, $where, $bind, $orderBy, $groupBy);
 
         $expected = array(
             "sql"  => "
@@ -300,7 +305,8 @@ class SegmentTest extends IntegrationTestCase
                     AND
                     ( log_conversion.idgoal = ? )
                 GROUP BY log_visit.idvisit
-                    ) AS log_inner",
+                    ) AS log_inner
+                GROUP BY log_inner.idvisit",
             "bind" => array(1, 1));
 
         $this->assertEquals($this->_filterWhiteSpaces($expected), $this->_filterWhiteSpaces($query));
@@ -402,11 +408,13 @@ class SegmentTest extends IntegrationTestCase
         $from = 'log_visit';
         $where = false;
         $bind = array();
+        $orderBy = false;
+        $groupBy = 'log_visit.group_by_field';
 
         $segment = 'visitConvertedGoalId==1;visitServerHour==12;customVariablePageName1==Test';
         $segment = new Segment($segment, $idSites = array());
 
-        $query = $segment->getSelectQuery($select, $from, $where, $bind);
+        $query = $segment->getSelectQuery($select, $from, $where, $bind, $orderBy, $groupBy);
 
         $expected = array(
             "sql"  => "
@@ -422,8 +430,9 @@ class SegmentTest extends IntegrationTestCase
                     LEFT JOIN " . Common::prefixTable('log_conversion') . " AS log_conversion ON log_conversion.idlink_va = log_link_visit_action.idlink_va AND log_conversion.idsite = log_link_visit_action.idsite
                 WHERE
                      log_conversion.idgoal = ? AND HOUR(log_visit.visit_last_action_time) = ? AND log_link_visit_action.custom_var_k1 = ?
-                GROUP BY log_visit.idvisit
-                    ) AS log_inner",
+                GROUP BY log_visit.group_by_field
+                    ) AS log_inner
+                GROUP BY log_inner.group_by_field",
             "bind" => array(1, 12, 'Test'));
 
         $this->assertEquals($this->_filterWhiteSpaces($expected), $this->_filterWhiteSpaces($query));
@@ -462,7 +471,7 @@ class SegmentTest extends IntegrationTestCase
         $where = 'log_visit.idvisit = ?';
         $bind = array(1);
         $orderBy = 'log_visit.order_by_field';
-        $groupBy = false;
+        $groupBy = 'log_visit.idvisit';
         $limit = 42;
 
         $segment = 'visitConvertedGoalId==1';
@@ -489,6 +498,7 @@ class SegmentTest extends IntegrationTestCase
                 ORDER BY log_visit.order_by_field
                 LIMIT 0, 42
                     ) AS log_inner
+                GROUP BY log_inner.idvisit
                 ORDER BY log_inner.order_by_field
                 LIMIT 0, 42
                 ",
@@ -526,7 +536,7 @@ class SegmentTest extends IntegrationTestCase
         $from = 'log_visit';
         $where = 'log_visit.idvisit = ?';
         $orderBy = 'log_visit.order_by_field';
-        $groupBy = false;
+        $groupBy = 'log_visit.idvisit';
         $limit = 42;
 
         $segment = 'pageUrl=@Hello%20wor%ld';
@@ -558,6 +568,7 @@ class SegmentTest extends IntegrationTestCase
                 ORDER BY log_visit.order_by_field
                 LIMIT 0, 42
                     ) AS log_inner
+                GROUP BY log_inner.idvisit
                 ORDER BY log_inner.order_by_field
                 LIMIT 0, 42
                 ",

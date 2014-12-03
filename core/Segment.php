@@ -433,6 +433,10 @@ class Segment
      */
     private function buildWrappedSelectQuery($select, $from, $where, $orderBy, $groupBy, $limit)
     {
+        if(empty($groupBy)) {
+            throw new Exception("Expected to get a GROUP BY to build the Wrapped query.");
+        }
+
         $matchTables = "(log_visit|log_conversion_item|log_conversion|log_action)";
         preg_match_all("/". $matchTables ."\.[a-z0-9_\*]+/", $select, $matches);
         $neededFields = array_unique($matches[0]);
@@ -445,7 +449,7 @@ class Segment
         // Wrapped query
         $innerOrderBy = $orderBy;
         $innerSelect = implode(", ", $neededFields);
-        $innerGroupBy = 'log_visit.idvisit';;
+        $innerGroupBy = $groupBy;
 
         // Main query
         $select = preg_replace('/'.$matchTables.'\./', 'log_inner.', $select);
