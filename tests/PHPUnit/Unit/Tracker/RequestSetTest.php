@@ -52,8 +52,13 @@ class RequestSetTest extends UnitTestCase
     {
         parent::setUp();
 
-        $this->requestSet = new TestRequestSet();
+        $this->requestSet = $this->createRequestSet();
         $this->time = time();
+    }
+
+    private function createRequestSet()
+    {
+        return new TestRequestSet();
     }
 
     public function test_internalBuildRequest_ShoulBuildOneRequest()
@@ -132,7 +137,7 @@ class RequestSetTest extends UnitTestCase
         $this->assertCount(5, $setRequests);
     }
 
-    public function test_setRequests_shouldIgnoreEmptyRequests()
+    public function test_setRequests_shouldIgnoreEmptyRequestsButNotArrays()
     {
         $requests = array(
             $this->buildRequest(5),
@@ -145,7 +150,7 @@ class RequestSetTest extends UnitTestCase
 
         $this->requestSet->setRequests($requests);
 
-        $expected = array($this->buildRequest(5), $this->buildRequest(2), $this->buildRequest(6));
+        $expected = array($this->buildRequest(5), $this->buildRequest(2), $this->buildRequest(6), new Request(array()));
         $this->assertEquals($expected, $this->requestSet->getRequests());
     }
 
@@ -285,6 +290,29 @@ class RequestSetTest extends UnitTestCase
         $this->assertEquals(array('server' => $_SERVER), $state['env']);
     }
 
+    public function test_getState_shouldRememberAnyAddedParamsFromRequestConstructor()
+    {
+        $_SERVER['HTTP_REFERER'] = 'test';
+
+        $requests = $this->buildRequests(1);
+
+        $this->requestSet->setRequests($requests);
+        $this->requestSet->setTokenAuth('mytoken');
+
+        $state = $this->requestSet->getState();
+
+        unset($_SERVER['HTTP_REFERER']);
+
+        $expectedRequests = array(
+            array('idsite' => 1)
+        );
+
+        $this->assertEquals($expectedRequests, $state['requests']);
+
+        // the actual params include an added urlref param which should NOT be in the state. otherwise we cannot detect empty requests etc
+        $this->assertEquals(array('idsite' => 1, 'url' => 'test'), $requests[0]->getParams());
+    }
+
     public function test_restoreState_shouldRestoreRequestSet()
     {
         $serverBackup = $_SERVER;
@@ -319,6 +347,37 @@ class RequestSetTest extends UnitTestCase
 
         // should not restoreEnvironment, only set the environment
         $this->assertSame($serverBackup, $_SERVER);
+    }
+
+    public function test_restoreState_ifRequestWasEmpty_ShouldBeStillEmptyWhenRestored()
+    {
+        $_SERVER['HTTP_REFERER'] = 'test';
+
+        $this->requestSet->setRequests(array(new Request(array())));
+        $state = $this->requestSet->getState();
+
+        $requestSet = $this->createRequestSet();
+        $requestSet->restoreState($state);
+
+        unset($_SERVER['HTTP_REFERER']);
+
+        $requests = $requestSet->getRequests();
+        $this->assertTrue($requests[0]->isEmptyRequest());
+    }
+
+    public function test_restoreState_shouldResetTheStoredEnvironmentBeforeRestoringRequests()
+    {
+        $this->requestSet->setRequests(array(new Request(array())));
+        $state = $this->requestSet->getState();
+        $state['env']['server']['HTTP_REFERER'] = 'mytesturl';
+
+        $requestSet = $this->createRequestSet();
+        $requestSet->restoreState($state);
+
+        $requests = $requestSet->getRequests();
+        $this->assertTrue($requests[0]->isEmptyRequest());
+        $this->assertEquals(array('url' => 'mytesturl'), $requests[0]->getParams());
+        $this->assertEmpty($_SERVER['HTTP_REFERER']);
     }
 
     public function test_getRedirectUrl_ShouldReturnEmptyString_IfNoUrlSet()

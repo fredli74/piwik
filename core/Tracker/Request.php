@@ -31,6 +31,7 @@ class Request
      * @var array
      */
     protected $params;
+    protected $rawParams;
 
     protected $isAuthenticated = null;
     private $isEmptyRequest = false;
@@ -51,6 +52,7 @@ class Request
             $params = array();
         }
         $this->params = $params;
+        $this->rawParams = $params;
         $this->tokenAuth = $tokenAuth;
         $this->timestamp = time();
         $this->isEmptyRequest = empty($params);
@@ -67,6 +69,16 @@ class Request
                 $this->params['url'] = $url;
             }
         }
+    }
+
+    /**
+     * Get the params that were originally passed to the instance. These params do not contain any params that were added
+     * within this object.
+     * @return array
+     */
+    public function getRawParams()
+    {
+        return $this->rawParams;
     }
 
     public function getTokenAuth()

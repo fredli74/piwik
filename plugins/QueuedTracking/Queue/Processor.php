@@ -76,6 +76,7 @@ class Processor
                 $requestSetsToRetry = $this->processRequestSets($tracker, $queuedRequestSets);
                 $this->processRequestSets($tracker, $requestSetsToRetry);
                 $queue->markRequestSetsAsProcessed();
+                // TODO if markR..() fails, we would process them again later
             }
         }
 

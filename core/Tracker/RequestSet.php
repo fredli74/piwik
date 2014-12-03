@@ -37,7 +37,7 @@ class RequestSet
 
         foreach ($requests as $request) {
 
-            if (empty($request)) {
+            if (empty($request) && !is_array($request)) {
                 continue;
             }
 
@@ -179,7 +179,7 @@ class RequestSet
         );
 
         foreach ($this->getRequests() as $request) {
-            $requests['requests'][] = $request->getParams();
+            $requests['requests'][] = $request->getRawParams();
             // todo we maybe need to save cdt (timestamp), tokenAuth, maybe also urlref and IP as well but we need to be
             // careful with restoring those values etc since we'd probably need to check permissions etc in some cases
         }
@@ -189,13 +189,19 @@ class RequestSet
 
     public function restoreState($state)
     {
-        $this->setTokenAuth($state['tokenAuth']);
-        $this->setRequests($state['requests']);
+        $backupEnv = $this->getCurrentEnvironment();
+
         $this->setEnvironment($state['env']);
+        $this->setTokenAuth($state['tokenAuth']);
+
+        $this->restoreEnvironment();
+        $this->setRequests($state['requests']);
 
         foreach ($this->getRequests() as $request) {
             $request->setCurrentTimestamp($state['time']);
         }
+
+        $this->resetEnvironment($backupEnv);
     }
 
     public function rememberEnvironment()
@@ -214,9 +220,7 @@ class RequestSet
             return $this->env;
         }
 
-        return array(
-            'server' => $_SERVER
-        );
+        return $this->getCurrentEnvironment();
     }
 
     public function restoreEnvironment()
@@ -225,7 +229,19 @@ class RequestSet
             return;
         }
 
-        $_SERVER = $this->env['server'];
+        $this->resetEnvironment($this->env);
+    }
+
+    private function resetEnvironment($env)
+    {
+        $_SERVER = $env['server'];
+    }
+
+    private function getCurrentEnvironment()
+    {
+        return array(
+            'server' => $_SERVER
+        );
     }
 
 
